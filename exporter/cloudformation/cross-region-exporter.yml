@@ -1,0 +1,102 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Defines the cross-region exporter resources
+Parameters:
+  SentryDsn:
+    Type: String
+    Description: Normally the misc project Sentry DSN
+    NoEcho: true
+
+Resources:
+  CrossStackRefTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+      - AttributeName: CrossStackRefId
+        AttributeType: S
+      KeySchema:
+      - AttributeName: CrossStackRefId
+        KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+
+  CrossRegionImportReplicationLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: ../../dist/cross_region_import_replication.zip
+      Handler: cross_region_import_replication.lambda_handler
+      Role: !GetAtt CrossRegionImportReplicationLambdaFunctionLambdaRole.Arn
+      Runtime: python3.6
+      Timeout: 300
+      Environment:
+        Variables:
+          SENTRY_DSN: !Ref SentryDsn
+          GENERATED_STACK_NAME: !Sub '${AWS::StackName}-ImportsReplication'
+          STACK_OUTPUTS_DIGEST_SSM_PARAMETER_NAME: !Sub '${AWS::StackName}-ImportsReplication-OutputsDigest'
+          CROSS_STACK_REF_TABLE_NAME: !Ref CrossStackRefTable
+      Tags:
+      - Key: SecurityClassification
+        Value: Green
+      - Key: Component
+        Value: CrossRegionImportReplicationLambdaFunction
+
+  CrossRegionImportReplicationLambdaFunctionLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+      - PolicyName: ReadAndUpdateDynamoDb
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: Allow
+            Action:
+            - dynamodb:Scan
+            Resource: !GetAtt CrossStackRefTable.Arn
+      - PolicyName: CreateAndUpdateGeneratedCloudformation
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudformation:CreateStack
+            - cloudformation:UpdateStack
+            Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}-ImportsReplication/*'
+      - PolicyName: PutAndDeleteOutputsDigestSsmParameter
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: Allow
+            Action:
+            - ssm:PutParameter
+            - ssm:DeleteParameter
+            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}-ImportsReplication-OutputsDigest'
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+
+  CrossRegionImportReplicationTriggerEvent:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: "rate(5 minutes)"
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt CrossRegionImportReplicationLambdaFunction.Arn
+          Id: CrossRegionImportReplicationTriggerEvent
+
+  CrossRegionImportReplicationLambdaFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref CrossRegionImportReplicationLambdaFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt CrossRegionImportReplicationTriggerEvent.Arn
