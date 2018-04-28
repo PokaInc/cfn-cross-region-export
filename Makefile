@@ -6,8 +6,7 @@ EXPORTER_STACK_NAME=cfn-cross-region-exporter
 EXPORTER_SOURCE_TEMPLATE_PATH = exporter/cloudformation/cross-region-exporter.yml
 EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH = $(shell pwd)/dist/cross-region-exporter.yml
 
-#BUCKET_NAME=cfn-cross-region-export-`aws sts get-caller-identity --output text --query 'Account'`-`aws configure get region`
-BUCKET_NAME=cf-template-pokactl-`aws sts get-caller-identity --output text --query 'Account'`-`aws configure get region`
+BUCKET_NAME=cfn-cross-region-export-`aws sts get-caller-identity --output text --query 'Account'`-`aws configure get region`
 
 # Check if variable has been defined, otherwise print custom error message
 check_defined = \
