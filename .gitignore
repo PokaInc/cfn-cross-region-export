@@ -1,0 +1,14 @@
+# Config
+config.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Artifacts
+dist/**
+!.gitkeep
+
+# IntelliJ
+.idea/
