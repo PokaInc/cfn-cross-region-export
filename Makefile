@@ -1,4 +1,4 @@
-IMPORTER_STACK_NAME=cfn-cross-region-importer
+IMPORTER_STACK_NAME?=`echo $(CROSS_STACK_REF_TABLE_ARN) | awk -F':' '{print $$4"-CrossRegionImporter"}'`
 IMPORTER_SOURCE_TEMPLATE_PATH = importer/cloudformation/cross-region-importer.yml
 IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH = $(shell pwd)/dist/cross-region-importer.yml
 
@@ -6,7 +6,7 @@ EXPORTER_STACK_NAME=cfn-cross-region-exporter
 EXPORTER_SOURCE_TEMPLATE_PATH = exporter/cloudformation/cross-region-exporter.yml
 EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH = $(shell pwd)/dist/cross-region-exporter.yml
 
-BUCKET_NAME=cfn-cross-region-export-`aws sts get-caller-identity --output text --query 'Account'`-`aws configure get region`
+BUCKET_NAME=cfn-cross-region-export-`aws sts get-caller-identity --output text --query 'Account'`-$${AWS_DEFAULT_REGION:-`aws configure get region`}
 
 # Check if variable has been defined, otherwise print custom error message
 check_defined = \

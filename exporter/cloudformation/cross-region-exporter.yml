@@ -100,3 +100,8 @@ Resources:
       FunctionName: !Ref CrossRegionImportReplicationLambdaFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt CrossRegionImportReplicationTriggerEvent.Arn
+
+
+Outputs:
+  CrossStackRefTableArn:
+    Value: !GetAtt CrossStackRefTable.Arn
