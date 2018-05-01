@@ -24,7 +24,7 @@ ImporterContext = namedtuple(
 class TableInfo(object):
     def __init__(self, table_arn):
         self.table_name = table_arn.split('/')[1]
-        self.target_region_name = table_arn.split(':')[3]
+        self.target_region = table_arn.split(':')[3]
 
 
 def lambda_handler(event, context):
@@ -47,6 +47,9 @@ def _lambda_handler(event, context):
     print("Received event: " + json.dumps(event, indent=2))
 
     resource_type = event['ResourceType']
+    if resource_type != RESOURCE_TYPE:
+        raise ValueError(f'Unexpected resource_type: {resource_type}. Use "{RESOURCE_TYPE}"')
+
     request_type = event['RequestType']
     physical_resource_id = event.get('PhysicalResourceId', str(uuid.uuid4()))
     resource_properties = event['ResourceProperties']
@@ -54,9 +57,6 @@ def _lambda_handler(event, context):
 
     importer_context = ImporterContext(stack_id=event['StackId'], logical_resource_id=event['LogicalResourceId'])
     table_info = TableInfo(os.environ['CROSS_STACK_REF_TABLE_ARN'])
-
-    if resource_type != RESOURCE_TYPE:
-        raise ValueError(f'Unexpected resource_type: {resource_type}. Use "{RESOURCE_TYPE}"')
 
     response_data = {}
 
@@ -83,7 +83,7 @@ def _lambda_handler(event, context):
 
 
 def _create_new_cross_stack_references(export_names, importer_context, table_info):
-    exports = _get_cloudformation_exports(table_info.target_region_name)
+    exports = _get_cloudformation_exports(table_info.target_region)
 
     response_data = {
         name: export_data['Value'] for name, export_data in exports.items() if name in export_names
@@ -93,13 +93,13 @@ def _create_new_cross_stack_references(export_names, importer_context, table_inf
     if missing_exports:
         raise ExportNotFoundError(', '.join(missing_exports))
 
-    dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region_name)
+    dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region)
     cross_stack_ref_table = dynamodb_resource.Table(table_info.table_name)
 
     for export_name in export_names:
         cross_stack_ref_id = f'{export_name}|{importer_context.stack_id}|{importer_context.logical_resource_id}'
         print(f'Adding cross-stack ref: {cross_stack_ref_id}')
-        _throttling_safe_operation(
+        _dynamodb_throttling_safe_operation(
             operation=cross_stack_ref_table.put_item,
             Item={
                 'CrossStackRefId': cross_stack_ref_id,
@@ -117,7 +117,7 @@ def _update_cross_stack_references(export_names, old_export_names, importer_cont
     export_names_to_remove = old_export_names - export_names
     export_names_to_add = export_names - old_export_names
 
-    exports = _get_cloudformation_exports(table_info.target_region_name)
+    exports = _get_cloudformation_exports(table_info.target_region)
 
     response_data = {
         name: export_data['Value'] for name, export_data in exports.items() if name in export_names
@@ -134,7 +134,7 @@ def _update_cross_stack_references(export_names, old_export_names, importer_cont
 
 
 def _delete_cross_stack_references(export_names, importer_context, table_info):
-    dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region_name)
+    dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region)
     cross_stack_ref_table = dynamodb_resource.Table(table_info.table_name)
 
     for export_name in export_names:
@@ -145,8 +145,8 @@ def _delete_cross_stack_references(export_names, importer_context, table_info):
         )
 
 
-def _get_cloudformation_exports(target_region_name):
-    cloudformation_client = boto3.client('cloudformation', region_name=target_region_name)
+def _get_cloudformation_exports(target_region):
+    cloudformation_client = boto3.client('cloudformation', region_name=target_region)
     paginator = cloudformation_client.get_paginator('list_exports')
     exports_page_iterator = paginator.paginate()
     exports = {
@@ -159,9 +159,9 @@ def _get_cloudformation_exports(target_region_name):
 
 
 class ExportNotFoundError(Exception):
-    def __init__(self, name):
+    def __init__(self, names):
         super(ExportNotFoundError, self).__init__(
-            'Export(s): {name} not found in exports'.format(name=name))
+            'Export(s): {names} not found in exports'.format(names=names))
 
 
 def _retry_if_throttled(exception):
@@ -175,7 +175,7 @@ def _retry_if_throttled(exception):
 
 
 @retry(stop_max_attempt_number=3, wait_random_min=1000, wait_random_max=5000, retry_on_exception=_retry_if_throttled)
-def _throttling_safe_operation(operation, **kwargs):
+def _dynamodb_throttling_safe_operation(operation, **kwargs):
     operation(**kwargs)
 
 

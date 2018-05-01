@@ -1,6 +1,6 @@
+import hashlib
 import json
 import os
-from hashlib import blake2b
 from pprint import pformat
 
 import boto3
@@ -68,10 +68,8 @@ def _lambda_handler():
         elif 'No updates are to be performed.' in message:
             print('No updates are to be performed.')
         else:
-            raise e
+            raise
 
 
 def _generate_hash(string_to_hash):
-    hasher = blake2b()
-    hasher.update(string_to_hash.encode())
-    return hasher.hexdigest()
+    return hashlib.sha224(string_to_hash.encode()).hexdigest()

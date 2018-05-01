@@ -2,7 +2,7 @@ IMPORTER_STACK_NAME?=`echo $(CROSS_STACK_REF_TABLE_ARN) | awk -F':' '{print $$4"
 IMPORTER_SOURCE_TEMPLATE_PATH = importer/cloudformation/cross-region-importer.yml
 IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH = $(shell pwd)/dist/cross-region-importer.yml
 
-EXPORTER_STACK_NAME=cfn-cross-region-exporter
+EXPORTER_STACK_NAME=CrossRegionExporter
 EXPORTER_SOURCE_TEMPLATE_PATH = exporter/cloudformation/cross-region-exporter.yml
 EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH = $(shell pwd)/dist/cross-region-exporter.yml
 
@@ -20,7 +20,7 @@ check-bucket:
 	@aws s3api head-bucket --bucket $(BUCKET_NAME) &> /dev/null || aws s3 mb s3://$(BUCKET_NAME)
 
 package-importer: check-bucket
-	@./importer/lambda/package_lambda.sh
+	@./package_lambda.sh importer/lambda cross_region_importer
 	@aws cloudformation package --template-file $(IMPORTER_SOURCE_TEMPLATE_PATH) --s3-bucket $(BUCKET_NAME) --s3-prefix cloudformation/$(IMPORTER_SOURCE_TEMPLATE_PATH).yml --output-template-file $(IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH)
 
 deploy-importer: package-importer
@@ -29,7 +29,7 @@ deploy-importer: package-importer
 
 
 package-exporter: check-bucket
-	@./exporter/lambda/package_lambda.sh
+	@./package_lambda.sh exporter/lambda cross_region_import_replication
 	@aws cloudformation package --template-file $(EXPORTER_SOURCE_TEMPLATE_PATH) --s3-bucket $(BUCKET_NAME) --s3-prefix cloudformation/$(EXPORTER_SOURCE_TEMPLATE_PATH).yml --output-template-file $(EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH)
 
 deploy-exporter: package-exporter
