@@ -1,7 +1,6 @@
 import hashlib
 import json
 import os
-from pprint import pformat
 
 import boto3
 import botocore
@@ -33,7 +32,7 @@ def _lambda_handler():
         } for c in cross_stack_references
     }
 
-    stack_outputs_digest = _generate_hash(pformat(outputs))
+    stack_outputs_digest = _generate_hash(json.dumps(outputs, sort_keys=True))
 
     imports_replication_template = {
         'AWSTemplateFormatVersion': '2010-09-09',
