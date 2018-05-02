@@ -27,7 +27,7 @@ def _lambda_handler():
 
     outputs = {
         _generate_hash(c['CrossStackRefId']): {
-            'Description': f'Imported by {c["ImporterStackId"]}.{c["ImporterLogicalResourceId"]}',
+            'Description': f'Imported by {c["ImporterStackId"]}.{c["ImporterLogicalResourceId"]}.{c["ImporterLabel"]}',
             'Value': {'Fn::ImportValue': c['ExportName']},
         } for c in cross_stack_references
     }
