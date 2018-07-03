@@ -35,13 +35,14 @@ Resources:
     Type: Custom::CrossRegionImporter
     Properties:
       ServiceToken: !ImportValue 'us-east-1:CrossRegionImporterServiceToken'
-      ExportNames: 'xyz-export'
+      Exports:
+        Xyz: 'xyz-export-name'
       
   TestImport:
-    Type: "AWS::SSM::Parameter"
+    Type: AWS::SSM::Parameter
     Properties:
-      Type: 'String'
-      Value: !GetAtt 'Importer.xyz-export'
+      Type: String
+      Value: !GetAtt Importer.Xyz
 
 ```
 
