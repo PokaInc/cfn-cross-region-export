@@ -33,5 +33,6 @@ package-exporter: check-bucket
 	@aws cloudformation package --template-file $(EXPORTER_SOURCE_TEMPLATE_PATH) --s3-bucket $(BUCKET_NAME) --s3-prefix cloudformation/$(EXPORTER_SOURCE_TEMPLATE_PATH).yml --output-template-file $(EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH)
 
 deploy-exporter: package-exporter
-	$(call check_defined, SENTRY_DSN, Ex: make generate-changelog SENTRY_DSN=https://...@sentry.io/...)
-	aws cloudformation deploy --template-file $(EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH) --stack-name $(EXPORTER_STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides SentryDsn=$(SENTRY_DSN)
+	$(call check_defined, SENTRY_DSN, Ex: make deploy-exporter SENTRY_DSN=https://...@sentry.io/...)
+	$(call check_defined, SENTRY_ENV, Ex: make deploy-exporter SENTRY_ENV=dev)
+	aws cloudformation deploy --template-file $(EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH) --stack-name $(EXPORTER_STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides SentryDsn=$(SENTRY_DSN) SentryEnvironment=$(SENTRY_ENV)

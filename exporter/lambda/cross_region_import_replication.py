@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+from uuid import uuid4
 
 import boto3
 import botocore
@@ -14,7 +15,11 @@ def lambda_handler(*_):
     except:
         # Using a the default transport does not work in a Lambda function.
         # Must use the HTTPTransport.
-        Client(dsn=os.environ['SENTRY_DSN'], transport=HTTPTransport).captureException()
+        Client(
+            dsn=os.environ['SENTRY_DSN'],
+            environment=os.environ['SENTRY_ENVIRONMENT'],
+            transport=HTTPTransport
+        ).captureException()
         # Must raise, otherwise the Lambda will be marked as successful, and the exception
         # will not be logged to CloudWatch logs.
         raise
@@ -23,46 +28,51 @@ def lambda_handler(*_):
 def _lambda_handler():
     dynamodb_resource = boto3.resource('dynamodb')
     cross_stack_ref_table = dynamodb_resource.Table(os.environ['CROSS_STACK_REF_TABLE_NAME'])
-    cross_stack_references = cross_stack_ref_table.scan()['Items']
 
-    outputs = {
-        _generate_hash(c['CrossStackRefId']): {
-            'Description': f'Imported by {c["ImporterStackId"]}.{c["ImporterLogicalResourceId"]}.{c["ImporterLabel"]}',
-            'Value': {'Fn::ImportValue': c['ExportName']},
-        } for c in cross_stack_references
-    }
+    scan_response = cross_stack_ref_table.scan()
+    cross_stack_references = scan_response['Items']
 
-    stack_outputs_digest = _generate_hash(json.dumps(outputs, sort_keys=True))
+    while scan_response.get('LastEvaluatedKey'):
+        scan_response = cross_stack_ref_table.scan(ExclusiveStartKey=scan_response['LastEvaluatedKey'])
+        cross_stack_references.extend(scan_response['Items'])
 
-    imports_replication_template = {
-        'AWSTemplateFormatVersion': '2010-09-09',
-        'Description': 'Auto-generated Template to simulate the standard importation behaviour on other regions',
-        'Resources': {
-            'OutputsDigestParameter': {
-                'Type': 'AWS::SSM::Parameter',
-                'Properties': {
-                    'Name': os.environ['STACK_OUTPUTS_DIGEST_SSM_PARAMETER_NAME'],
-                    'Type': 'String',
-                    'Value': str(stack_outputs_digest)
+    nested_template_urls = []
+
+    for items in chunks(cross_stack_references, 200):
+        nested_template_urls.append(_generate_nested_template(items))
+
+    master_template_resources = {}
+
+    for i, url in enumerate(nested_template_urls):
+        master_template_resources[f"ParameterChunk{i}"] = {
+                "Type": "AWS::CloudFormation::Stack",
+                "Properties": {
+                    "TemplateURL": url
                 }
             }
-        },
-        'Outputs': outputs
+
+    master_template = {
+        'AWSTemplateFormatVersion': '2010-09-09',
+        'Description': 'Auto-generated Template to simulate the standard importation behaviour on other regions',
+        'Resources': master_template_resources
     }
 
     cloudformation_client = boto3.client('cloudformation')
 
+    _upload_template(os.environ['GENERATED_STACK_NAME'], json.dumps(master_template))
+    template_url = _build_unsigned_url(os.environ['GENERATED_STACK_NAME'])
+
     try:
         cloudformation_client.update_stack(
             StackName=os.environ['GENERATED_STACK_NAME'],
-            TemplateBody=json.dumps(imports_replication_template),
+            TemplateURL=template_url,
         )
     except botocore.exceptions.ClientError as e:
         message = e.response['Error']['Message']
         if 'does not exist' in message:
             cloudformation_client.create_stack(
                 StackName=os.environ['GENERATED_STACK_NAME'],
-                TemplateBody=json.dumps(imports_replication_template),
+                TemplateURL=template_url,
             )
         elif 'No updates are to be performed.' in message:
             print('No updates are to be performed.')
@@ -72,3 +82,62 @@ def _lambda_handler():
 
 def _generate_hash(string_to_hash):
     return hashlib.sha224(string_to_hash.encode()).hexdigest()
+
+
+def _upload_template(template_name, template_content):
+    s3_resource = boto3.resource('s3')
+    template_object = s3_resource.Object(os.environ['TEMPLATE_BUCKET'], template_name)
+
+    template_object.put(Body=template_content.encode())
+
+
+def _build_unsigned_url(template_name):
+    s3_resource = boto3.resource('s3')
+    template_object = s3_resource.Object(
+        os.environ['TEMPLATE_BUCKET'],
+        template_name
+    )
+
+    return '{host}/{bucket}/{key}'.format(
+        host=template_object.meta.client.meta.endpoint_url,
+        bucket=template_object.bucket_name,
+        key=template_object.key,
+    )
+
+
+def _generate_nested_template(cross_stack_references):
+    last_ref_id = None
+    ssm_resources = {}
+
+    for ref in cross_stack_references:
+        ref_id = _generate_hash(ref['CrossStackRefId'])
+        ssm_resources[ref_id] = {
+            'Type': 'AWS::SSM::Parameter',
+            'Properties': {
+                'Name': f'cross-region-import-replication.{ref_id}',
+                'Description': f'Imported by {ref["ImporterStackId"]}.{ref["ImporterLogicalResourceId"]}.{ref["ImporterLabel"]}',
+                'Value': {'Fn::ImportValue': ref['ExportName']},
+                'Type': 'String'
+            },
+        }
+
+        if last_ref_id:
+            ssm_resources[ref_id]['DependsOn'] = last_ref_id  # Required to prevent SSM throttling exceptions
+
+        last_ref_id = ref_id
+
+    imports_replication_template = {
+        'AWSTemplateFormatVersion': '2010-09-09',
+        'Description': 'Auto-generated Template to simulate the standard importation behaviour on other regions',
+        'Resources': ssm_resources
+    }
+
+    template_name = f'{os.environ["GENERATED_STACK_NAME"]}.{uuid4()}'
+
+    _upload_template(template_name, json.dumps(imports_replication_template))
+    return _build_unsigned_url(template_name)
+
+
+def chunks(l, n):
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
