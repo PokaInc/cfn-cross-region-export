@@ -91,9 +91,9 @@ Resources:
           Statement:
           - Effect: "Allow"
             Action:
-            - s3:PutObject*
-            - s3:GetObject*
-            Resource: !Sub arn:aws:s3:::${CrossStackRefBucket}/*
+            - s3:PutObject
+            - s3:GetObject
+            Resource: !Sub '${CrossStackRefBucket.Arn}/*'
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 

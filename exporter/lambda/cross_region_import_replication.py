@@ -9,6 +9,9 @@ from raven import Client
 from raven.transport import HTTPTransport
 
 
+MAX_RESOURCES_PER_TEMPLATE = 200
+
+
 def lambda_handler(*_):
     try:
         _lambda_handler()
@@ -38,7 +41,7 @@ def _lambda_handler():
 
     nested_template_urls = []
 
-    for items in chunks(cross_stack_references, 200):
+    for items in _chunks(cross_stack_references, MAX_RESOURCES_PER_TEMPLATE):
         nested_template_urls.append(_generate_nested_template(items))
 
     master_template_resources = {}
@@ -53,7 +56,7 @@ def _lambda_handler():
 
     master_template = {
         'AWSTemplateFormatVersion': '2010-09-09',
-        'Description': 'Auto-generated Template to simulate the standard importation behaviour on other regions',
+        'Description': 'Auto-generated templates to simulate the standard importation behaviour on other regions',
         'Resources': master_template_resources
     }
 
@@ -87,7 +90,6 @@ def _generate_hash(string_to_hash):
 def _upload_template(template_name, template_content):
     s3_resource = boto3.resource('s3')
     template_object = s3_resource.Object(os.environ['TEMPLATE_BUCKET'], template_name)
-
     template_object.put(Body=template_content.encode())
 
 
@@ -111,7 +113,7 @@ def _generate_nested_template(cross_stack_references):
 
     for ref in cross_stack_references:
         ref_id = _generate_hash(ref['CrossStackRefId'])
-        ssm_resources[ref_id] = {
+        ssm_resource = {
             'Type': 'AWS::SSM::Parameter',
             'Properties': {
                 'Name': f'cross-region-import-replication.{ref_id}',
@@ -122,13 +124,14 @@ def _generate_nested_template(cross_stack_references):
         }
 
         if last_ref_id:
-            ssm_resources[ref_id]['DependsOn'] = last_ref_id  # Required to prevent SSM throttling exceptions
+            ssm_resource['DependsOn'] = last_ref_id  # Required to prevent SSM throttling exceptions
+
+        ssm_resources[ref_id] = ssm_resource
 
         last_ref_id = ref_id
 
     imports_replication_template = {
         'AWSTemplateFormatVersion': '2010-09-09',
-        'Description': 'Auto-generated Template to simulate the standard importation behaviour on other regions',
         'Resources': ssm_resources
     }
 
@@ -138,6 +141,6 @@ def _generate_nested_template(cross_stack_references):
     return _build_unsigned_url(template_name)
 
 
-def chunks(l, n):
+def _chunks(l, n):
     for i in range(0, len(l), n):
         yield l[i:i + n]
