@@ -4,6 +4,8 @@ import uuid
 from collections import namedtuple
 
 import boto3
+from boto3.dynamodb.conditions import Key, Attr
+from botocore.exceptions import ClientError
 from botocore.vendored import requests
 from retrying import retry
 
@@ -51,7 +53,7 @@ def _lambda_handler(event, context):
         raise ValueError(f'Unexpected resource_type: {resource_type}. Use "{RESOURCE_TYPE}"')
 
     request_type = event['RequestType']
-    physical_resource_id = event.get('PhysicalResourceId', str(uuid.uuid4()))
+    physical_resource_id = None
     resource_properties = event['ResourceProperties']
     requested_exports = resource_properties.get('Exports', {})
 
@@ -60,15 +62,18 @@ def _lambda_handler(event, context):
 
     response_data = {}
 
-    if request_type == 'Create':
-        response_data = _create_new_cross_stack_references(requested_exports, importer_context, table_info)
-
-    elif request_type == 'Update':
-        old_exports = event['OldResourceProperties'].get('Exports', {})
-        response_data = _update_cross_stack_references(requested_exports, old_exports, importer_context, table_info)
+    if request_type in ['Create', 'Update']:
+        physical_resource_id = str(uuid.uuid4())
+        response_data = _create_new_cross_stack_references(
+            requested_exports,
+            importer_context,
+            table_info,
+            physical_resource_id
+        )
 
     elif request_type == 'Delete':
-        _delete_cross_stack_references(requested_exports, importer_context, table_info)
+        physical_resource_id = event['PhysicalResourceId']
+        _delete_cross_stack_references(requested_exports, importer_context, table_info, physical_resource_id)
 
     else:
         print('Request type is {request_type}, doing nothing.'.format(request_type=request_type))
@@ -82,7 +87,7 @@ def _lambda_handler(event, context):
     )
 
 
-def _create_new_cross_stack_references(requested_exports, importer_context, table_info):
+def _create_new_cross_stack_references(requested_exports, importer_context, table_info, physical_resource_id):
     exports = _get_cloudformation_exports(table_info.target_region)
 
     try:
@@ -96,7 +101,7 @@ def _create_new_cross_stack_references(requested_exports, importer_context, tabl
     cross_stack_ref_table = dynamodb_resource.Table(table_info.table_name)
 
     for label, export_name in requested_exports.items():
-        cross_stack_ref_id = f'{export_name}|{importer_context.stack_id}|{importer_context.logical_resource_id}|{label}'
+        cross_stack_ref_id = f'{physical_resource_id}|{export_name}'
         print(f'Adding cross-stack ref: {cross_stack_ref_id}')
         _dynamodb_throttling_safe_operation(
             operation=cross_stack_ref_table.put_item,
@@ -113,41 +118,42 @@ def _create_new_cross_stack_references(requested_exports, importer_context, tabl
     return response_data
 
 
-def _update_cross_stack_references(requested_exports, old_exports, importer_context, table_info):
-    requested_exports_labels = set(requested_exports.keys())
-    old_exports_labels = set(old_exports.keys())
-
-    export_labels_to_add = requested_exports_labels - old_exports_labels
-    export_labels_to_remove = old_exports_labels - requested_exports_labels
-
-    exports_to_add = {label_to_add: requested_exports[label_to_add] for label_to_add in export_labels_to_add}
-    exports_to_remove = {label_to_remove: old_exports[label_to_remove] for label_to_remove in export_labels_to_remove}
-
-    exports = _get_cloudformation_exports(table_info.target_region)
-
-    try:
-        response_data = {
-            label: exports[export_name]['Value'] for label, export_name in requested_exports.items()
-        }
-    except KeyError as e:
-        raise ExportNotFoundError(e.args[0])
-
-    _create_new_cross_stack_references(exports_to_add, importer_context, table_info)
-    _delete_cross_stack_references(exports_to_remove, importer_context, table_info)
-
-    return response_data
-
-
-def _delete_cross_stack_references(exports_to_remove, importer_context, table_info):
+def _delete_cross_stack_references(exports_to_remove, importer_context, table_info, physical_resource_id):
     dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region)
     cross_stack_ref_table = dynamodb_resource.Table(table_info.table_name)
 
     for label, export_name in exports_to_remove.items():
-        cross_stack_ref_id = f'{export_name}|{importer_context.stack_id}|{importer_context.logical_resource_id}|{label}'
+        cross_stack_ref_id = f'{physical_resource_id}|{export_name}'
         print(f'Removing cross-stack ref: {cross_stack_ref_id}')
-        cross_stack_ref_table.delete_item(
-            Key={'CrossStackRefId': cross_stack_ref_id},
-        )
+        try:
+            cross_stack_ref_table.delete_item(
+                Key={'CrossStackRefId': cross_stack_ref_id},
+                ConditionExpression=Attr('CrossStackRefId').eq(cross_stack_ref_id),
+            )
+        except ClientError:
+            print(f'{cross_stack_ref_id} was not found, scanning to get the key name')
+            scan_response = cross_stack_ref_table.scan(
+                FilterExpression=
+                Key('ExportName').eq(export_name) &
+                Key('ImporterStackId').eq(importer_context.stack_id) &
+                Key('ImporterLabel').eq(label) &
+                Key('ImporterLogicalResourceId').eq(importer_context.logical_resource_id)
+            )
+            cross_stack_ref_ids = [
+                cross_ref_id['CrossStackRefId'] for cross_ref_id in scan_response['Items']
+                if cross_ref_id != cross_stack_ref_id
+            ]
+
+            while scan_response.get('LastEvaluatedKey'):
+                scan_response = cross_stack_ref_table.scan(ExclusiveStartKey=scan_response['LastEvaluatedKey'])
+                cross_stack_ref_ids.extend([cross_ref_id['CrossStackRefId'] for cross_ref_id in scan_response['Items']])
+
+            for ref_id in cross_stack_ref_ids:
+                print(f'Deleting {ref_id}')
+                cross_stack_ref_table.delete_item(
+                    Key={'CrossStackRefId': ref_id},
+                    ConditionExpression=Attr('CrossStackRefId').eq(ref_id),
+                )
 
 
 def _get_cloudformation_exports(target_region):

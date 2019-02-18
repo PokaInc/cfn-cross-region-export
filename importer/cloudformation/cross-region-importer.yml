@@ -36,6 +36,7 @@ Resources:
             - dynamodb:GetItem
             - dynamodb:PutItem
             - dynamodb:DeleteItem
+            - dynamodb:Scan
             Resource: !Ref CrossStackRefTableArn
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
