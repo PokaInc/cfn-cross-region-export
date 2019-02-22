@@ -21,6 +21,8 @@ Resources:
       - AttributeName: CrossStackRefId
         KeyType: HASH
       BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: KEYS_ONLY
 
   CrossStackRefBucket:
     Type: AWS::S3::Bucket
@@ -94,26 +96,27 @@ Resources:
             - s3:PutObject
             - s3:GetObject
             Resource: !Sub '${CrossStackRefBucket.Arn}/*'
+      - PolicyName: AccessDynamoStream
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: Allow
+            Action:
+            - dynamodb:GetRecords
+            - dynamodb:GetShardIterator
+            - dynamodb:DescribeStream
+            - dynamodb:ListStreams
+            Resource: !GetAtt CrossStackRefTable.StreamArn
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
-  CrossRegionImportReplicationTriggerEvent:
-    Type: AWS::Events::Rule
+  CrossRegionImporterLambdaEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
     Properties:
-      ScheduleExpression: "rate(5 minutes)"
-      State: ENABLED
-      Targets:
-        - Arn: !GetAtt CrossRegionImportReplicationLambdaFunction.Arn
-          Id: CrossRegionImportReplicationTriggerEvent
-
-  CrossRegionImportReplicationLambdaFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
+      EventSourceArn: !GetAtt CrossStackRefTable.StreamArn
       FunctionName: !Ref CrossRegionImportReplicationLambdaFunction
-      Principal: events.amazonaws.com
-      SourceArn: !GetAtt CrossRegionImportReplicationTriggerEvent.Arn
-
+      StartingPosition: TRIM_HORIZON
+      
 Outputs:
   CrossStackRefTableArn:
     Value: !GetAtt CrossStackRefTable.Arn
