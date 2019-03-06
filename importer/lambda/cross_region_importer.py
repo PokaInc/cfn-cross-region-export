@@ -4,7 +4,7 @@ import uuid
 from collections import namedtuple
 
 import boto3
-from boto3.dynamodb.conditions import Key, Attr
+from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 from botocore.vendored import requests
 from retrying import retry
@@ -132,29 +132,12 @@ def _delete_cross_stack_references(exports_to_remove, importer_context, table_in
             )
         except ClientError as e:
             if 'The conditional request failed' in str(e):
-                print(f'{cross_stack_ref_id} was not found, scanning to get the key name')
-                scan_response = cross_stack_ref_table.scan(
-                    FilterExpression=
-                    Key('ExportName').eq(export_name) &
-                    Key('ImporterStackId').eq(importer_context.stack_id) &
-                    Key('ImporterLabel').eq(label) &
-                    Key('ImporterLogicalResourceId').eq(importer_context.logical_resource_id)
+                print(f'{cross_stack_ref_id} was not found, trying old naming')
+                cross_stack_ref_table.delete_item(
+                    Key={
+                        'CrossStackRefId': f'{export_name}|{importer_context.stack_id}|{importer_context.logical_resource_id}|{label}'
+                    }
                 )
-                cross_stack_ref_ids = [
-                    cross_ref_id['CrossStackRefId'] for cross_ref_id in scan_response['Items']
-                    if cross_ref_id != cross_stack_ref_id
-                ]
-
-                while scan_response.get('LastEvaluatedKey'):  # This loop manage pagination of results
-                    scan_response = cross_stack_ref_table.scan(ExclusiveStartKey=scan_response['LastEvaluatedKey'])
-                    cross_stack_ref_ids.extend([cross_ref_id['CrossStackRefId'] for cross_ref_id in scan_response['Items']])
-
-                for ref_id in cross_stack_ref_ids:
-                    print(f'Deleting {ref_id}')
-                    cross_stack_ref_table.delete_item(
-                        Key={'CrossStackRefId': ref_id},
-                        ConditionExpression=Attr('CrossStackRefId').eq(ref_id),
-                    )
             else:
                 raise
 
