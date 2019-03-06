@@ -9,7 +9,7 @@ from raven import Client
 from raven.transport import HTTPTransport
 
 MAX_RESOURCES_PER_TEMPLATE = 200
-RESSOURCE_BY_GROUP = 30  # SSM parameter rate limit is around 50
+RESSOURCE_BY_GROUP = 5
 
 
 def lambda_handler(*_):
@@ -42,7 +42,7 @@ def _lambda_handler():
     nested_template_urls = []
 
     number_of_chunk = len(cross_stack_references) / MAX_RESOURCES_PER_TEMPLATE
-    max_group_size = min(number_of_chunk/RESSOURCE_BY_GROUP, RESSOURCE_BY_GROUP)
+    max_group_size = int(max(min(RESSOURCE_BY_GROUP/number_of_chunk, RESSOURCE_BY_GROUP), 1))
 
     for items in _chunks(cross_stack_references, MAX_RESOURCES_PER_TEMPLATE):
         nested_template_urls.append(_generate_nested_template(items, max_group_size))
