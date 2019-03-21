@@ -116,7 +116,7 @@ def _generate_nested_template(cross_stack_references):
         ssm_resource = {
             'Type': 'AWS::SSM::Parameter',
             'Properties': {
-                'Name': f'cross-region-import-replication.{ref_id}',
+                'Name': {'Fn::Sub': "${AWS::StackName}." + ref_id},
                 'Description': f'Imported by {ref["ImporterStackId"]}.{ref["ImporterLogicalResourceId"]}.{ref["ImporterLabel"]}',
                 'Value': {'Fn::ImportValue': ref['ExportName']},
                 'Type': 'String'
