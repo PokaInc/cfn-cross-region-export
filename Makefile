@@ -24,7 +24,7 @@ package-importer: check-bucket
 	@aws cloudformation package --template-file $(IMPORTER_SOURCE_TEMPLATE_PATH) --s3-bucket $(BUCKET_NAME) --s3-prefix cloudformation/$(IMPORTER_SOURCE_TEMPLATE_PATH).yml --output-template-file $(IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH)
 
 deploy-importer: package-importer
-	$(call check_defined, CROSS_STACK_REF_TABLE_ARN, Ex: make generate-changelog CROSS_STACK_REF_TABLE_ARN=arn:aws:dynamodb:region:accountid:table/tablename)
+	$(call check_defined, CROSS_STACK_REF_TABLE_ARN, Ex: make deploy-importer CROSS_STACK_REF_TABLE_ARN=arn:aws:dynamodb:region:accountid:table/tablename)
 	aws cloudformation deploy --template-file $(IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH) --stack-name $(IMPORTER_STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides CrossStackRefTableArn=$(CROSS_STACK_REF_TABLE_ARN)
 
 
