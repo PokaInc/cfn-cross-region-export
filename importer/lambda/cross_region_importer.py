@@ -73,7 +73,7 @@ def _lambda_handler(event, context):
 
     elif request_type == 'Delete':
         physical_resource_id = event['PhysicalResourceId']
-        _delete_cross_stack_references(requested_exports, importer_context, table_info, physical_resource_id)
+        _delete_cross_stack_references(requested_exports, table_info, physical_resource_id)
 
     else:
         print('Request type is {request_type}, doing nothing.'.format(request_type=request_type))
@@ -118,7 +118,7 @@ def _create_new_cross_stack_references(requested_exports, importer_context, tabl
     return response_data
 
 
-def _delete_cross_stack_references(exports_to_remove, importer_context, table_info, physical_resource_id):
+def _delete_cross_stack_references(exports_to_remove, table_info, physical_resource_id):
     dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region)
     cross_stack_ref_table = dynamodb_resource.Table(table_info.table_name)
 
@@ -132,12 +132,7 @@ def _delete_cross_stack_references(exports_to_remove, importer_context, table_in
             )
         except ClientError as e:
             if 'The conditional request failed' in str(e):
-                print(f'{cross_stack_ref_id} was not found, trying old naming')
-                cross_stack_ref_table.delete_item(
-                    Key={
-                        'CrossStackRefId': f'{export_name}|{importer_context.stack_id}|{importer_context.logical_resource_id}|{label}'
-                    }
-                )
+                print(f'{cross_stack_ref_id} was not found')
             else:
                 raise
 

@@ -48,6 +48,15 @@ Resources:
 
 ### Installation
 
+#### _Important info_
+
+If you were using this project in the release v0.1 and before, you need to run the dynamodb key migration script 
+located in `migration-script/migrate_dynamo_keys.py`. Doing this will create a copy of an old key with the new naming.
+
+**Before running the script**, you need to set the following environment variable :
+
+`export CROSS_STACK_REF_TABLE_ARN=<THE DYNAMODB TABLE ARN>`
+
 #### Exporter
 
 Start by deploying the **Exporter**
@@ -74,8 +83,8 @@ Create a DynamoDB table. The python script for the **Exporter** can be ran local
 
 ```
 export SENTRY_DSN=<A SENTRY DSN>
+export SENTRY_ENV=<dev|stage|prod|...>
 export GENERATED_STACK_NAME='dev-ImportsReplication'
-export STACK_OUTPUTS_DIGEST_SSM_PARAMETER_NAME: 'dev-ImportsReplication-OutputsDigest'
 export CROSS_STACK_REF_TABLE_NAME=<THE DYNAMODB TABLE NAME>
 python3 exporter/lambda/cross_region_import_replication.py
 ```
@@ -101,5 +110,4 @@ _CloudWatch_ to help you with the debugging.
 ### TODO
 
 * Support cross-account imports (using assume-role it should be fairly easy to do)
-* Don't rely on polling for the ImportsReplication stack.
 * Make the `SentryDsn` parameter optional
