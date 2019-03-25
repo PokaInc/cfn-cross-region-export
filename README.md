@@ -63,7 +63,7 @@ Start by deploying the **Exporter**
 
 ```
 export AWS_DEFAULT_REGION=<EXPORTER_REGION>
-make deploy-exporter SENTRY_DSN=https://...@sentry.io/... 
+make deploy-exporter SENTRY_ENV=prod SENTRY_DSN=https://...@sentry.io/... 
 ```
 
 #### Importer

@@ -4,10 +4,11 @@ import uuid
 from collections import namedtuple
 
 import boto3
+import requests
+from boto3.dynamodb.conditions import Key, Attr
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
-from botocore.vendored import requests
-from retrying import retry
+from tenacity import retry, retry_if_exception_type, wait_random_exponential
 
 RESOURCE_TYPE = 'Custom::CrossRegionImporter'
 SUCCESS = "SUCCESS"
@@ -103,8 +104,7 @@ def _create_new_cross_stack_references(requested_exports, importer_context, tabl
     for label, export_name in requested_exports.items():
         cross_stack_ref_id = f'{physical_resource_id}|{export_name}'
         print(f'Adding cross-stack ref: {cross_stack_ref_id}')
-        _dynamodb_throttling_safe_operation(
-            operation=cross_stack_ref_table.put_item,
+        cross_stack_ref_table.put_item(
             Item={
                 'CrossStackRefId': cross_stack_ref_id,
                 'ImporterStackId': importer_context.stack_id,
@@ -137,6 +137,10 @@ def _delete_cross_stack_references(exports_to_remove, table_info, physical_resou
                 raise
 
 
+@retry(
+    wait=wait_random_exponential(multiplier=1, max=30),
+    retry=retry_if_exception_type(ClientError),
+)
 def _get_cloudformation_exports(target_region):
     cloudformation_client = boto3.client('cloudformation', region_name=target_region)
     paginator = cloudformation_client.get_paginator('list_exports')
@@ -154,21 +158,6 @@ class ExportNotFoundError(Exception):
     def __init__(self, name):
         super(ExportNotFoundError, self).__init__(
             'Export: {name} not found in exports'.format(name=name))
-
-
-def _retry_if_throttled(exception):
-    throttling_exceptions = ('ProvisionedThroughputExceededException', 'ThrottlingException')
-    should_retry = exception.response['Error']['Code'] in throttling_exceptions
-
-    if should_retry:
-        print('CrossStackRefTable state table is busy, retrying...')
-
-    return should_retry
-
-
-@retry(stop_max_attempt_number=3, wait_random_min=1000, wait_random_max=5000, retry_on_exception=_retry_if_throttled)
-def _dynamodb_throttling_safe_operation(operation, **kwargs):
-    operation(**kwargs)
 
 
 def send(event, context, response_status, response_data, physical_resource_id, reason=None):
