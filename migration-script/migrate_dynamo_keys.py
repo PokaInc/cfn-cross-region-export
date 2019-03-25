@@ -9,27 +9,12 @@ from botocore.exceptions import ClientError
 OLD_NAMING_REGEX = re.compile(r'^(.*)\|(.*)\|(.*)\|(.*)$')
 
 
-class TableInfo(object):
-    def __init__(self, table_arn):
-        self.table_name = table_arn.split('/')[1]
-        self.target_region = table_arn.split(':')[3]
+def main():
+    table_info = _extract_region_and_resource_name(os.environ['CROSS_STACK_REF_TABLE_ARN'])
+    migrated = 0
 
-
-def _get_physical_resource_id(arn, logical_id):
-    stack_name = arn.split('/')[1]
-    stack_region = arn.split(':')[3]
-    cf_resource = boto3.resource('cloudformation', region_name=stack_region)
-    stack_resource = cf_resource.StackResource(stack_name, logical_id)
-    return stack_resource.physical_resource_id
-
-
-if __name__ == '__main__':
-    table_info = TableInfo(os.environ['CROSS_STACK_REF_TABLE_ARN'])
-    created = 0
-    deleted = 0
-
-    dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region)
-    cross_stack_ref_table = dynamodb_resource.Table(table_info.table_name)
+    dynamodb_resource = boto3.resource('dynamodb', region_name=table_info['region'])
+    cross_stack_ref_table = dynamodb_resource.Table(table_info['name'])
 
     scan_response = cross_stack_ref_table.scan()
     cross_stack_items = [cross_ref_id for cross_ref_id in scan_response['Items']]
@@ -53,19 +38,30 @@ if __name__ == '__main__':
                     Item=item,
                     ConditionExpression=Attr('CrossStackRefId').ne(new_name)
                 )
-                created += 1
             except ClientError as e:
                 if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
                     print(f'\033[1;31;40m{new_name} already exist, not updating it')
             else:
-                try:
-                    print(f'Deleting old item : {old_name} ')
-                    cross_stack_ref_table.delete_item(
-                        Key={'CrossStackRefId': old_name},
-                        ConditionExpression=Attr('CrossStackRefId').eq(old_name)
-                    )
-                    deleted += 1
-                except ClientError as e:
-                    if e.response['Error']['Code'] != 'ConditionalCheckFailedException':
-                        print(f'\033[1;31;40m{old_name} does not exist, cannot delete it')
-    print(f'\033[1;32;40mItem created : {created}\nItem deleted : {deleted}')
+                print(f'Deleting old item : {old_name} ')
+                cross_stack_ref_table.delete_item(
+                    Key={'CrossStackRefId': old_name},
+                    ConditionExpression=Attr('CrossStackRefId').eq(old_name)
+                )
+                migrated += 1
+    print(f'\033[1;32;40mItem migrated : {migrated}')
+
+
+def _get_physical_resource_id(arn, logical_id):
+    stack_info = _extract_region_and_resource_name(arn)
+    cf_resource = boto3.resource('cloudformation', region_name=stack_info['region'])
+    return cf_resource.StackResource(stack_info['name'], logical_id).physical_resource_id
+
+
+def _extract_region_and_resource_name(arn):
+    resource_name = arn.split('/')[1]
+    resource_region = arn.split(':')[3]
+    return {'name': resource_name, 'region': resource_region}
+
+
+if __name__ == '__main__':
+    main()

@@ -51,9 +51,11 @@ Resources:
 #### _Important info_
 
 If you were using this project in the release v0.1 and before, you need to run the dynamodb key migration script 
-located in `migration-script/migrate_dynamo_keys.py`. Doing this will create a copy of an old key with the new naming.
+located in `migration-script/migrate_dynamo_keys.py`. 
+Doing this will migrate rows with the old naming to the new naming.
 
-**Before running the script**, you need to set the following environment variable :
+**To run this script** you will need to have at least a **read** access to CloudFormation and a **read/write** access 
+to the DynamoDB table. the following environment variable also need to be set:
 
 `export CROSS_STACK_REF_TABLE_ARN=<THE DYNAMODB TABLE ARN>`
 

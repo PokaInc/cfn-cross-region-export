@@ -5,7 +5,6 @@ from collections import namedtuple
 
 import boto3
 import requests
-from boto3.dynamodb.conditions import Key, Attr
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 from tenacity import retry, retry_if_exception_type, wait_random_exponential
