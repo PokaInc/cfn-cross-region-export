@@ -5,7 +5,7 @@ from collections import namedtuple
 
 import boto3
 import requests
-from boto3.dynamodb.conditions import Key, Attr
+from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
 from tenacity import retry, retry_if_exception_type, wait_random_exponential
 
@@ -73,7 +73,7 @@ def _lambda_handler(event, context):
 
     elif request_type == 'Delete':
         physical_resource_id = event['PhysicalResourceId']
-        _delete_cross_stack_references(requested_exports, importer_context, table_info, physical_resource_id)
+        _delete_cross_stack_references(requested_exports, table_info, physical_resource_id)
 
     else:
         print('Request type is {request_type}, doing nothing.'.format(request_type=request_type))
@@ -117,7 +117,7 @@ def _create_new_cross_stack_references(requested_exports, importer_context, tabl
     return response_data
 
 
-def _delete_cross_stack_references(exports_to_remove, importer_context, table_info, physical_resource_id):
+def _delete_cross_stack_references(exports_to_remove, table_info, physical_resource_id):
     dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region)
     cross_stack_ref_table = dynamodb_resource.Table(table_info.table_name)
 
@@ -131,29 +131,7 @@ def _delete_cross_stack_references(exports_to_remove, importer_context, table_in
             )
         except ClientError as e:
             if 'The conditional request failed' in str(e):
-                print(f'{cross_stack_ref_id} was not found, scanning to get the key name')
-                scan_response = cross_stack_ref_table.scan(
-                    FilterExpression=
-                    Key('ExportName').eq(export_name) &
-                    Key('ImporterStackId').eq(importer_context.stack_id) &
-                    Key('ImporterLabel').eq(label) &
-                    Key('ImporterLogicalResourceId').eq(importer_context.logical_resource_id)
-                )
-                cross_stack_ref_ids = [
-                    cross_ref_id['CrossStackRefId'] for cross_ref_id in scan_response['Items']
-                    if cross_ref_id != cross_stack_ref_id
-                ]
-
-                while scan_response.get('LastEvaluatedKey'):  # This loop manage pagination of results
-                    scan_response = cross_stack_ref_table.scan(ExclusiveStartKey=scan_response['LastEvaluatedKey'])
-                    cross_stack_ref_ids.extend([cross_ref_id['CrossStackRefId'] for cross_ref_id in scan_response['Items']])
-
-                for ref_id in cross_stack_ref_ids:
-                    print(f'Deleting {ref_id}')
-                    cross_stack_ref_table.delete_item(
-                        Key={'CrossStackRefId': ref_id},
-                        ConditionExpression=Attr('CrossStackRefId').eq(ref_id),
-                    )
+                print(f'{cross_stack_ref_id} was not found')
             else:
                 raise
 
