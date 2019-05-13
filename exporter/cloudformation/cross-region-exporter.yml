@@ -87,6 +87,7 @@ Resources:
             Action:
             - ssm:PutParameter
             - ssm:DeleteParameter
+            - ssm:AddTagsToResource
             Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*'
       - PolicyName: UploadTemplateToS3
         PolicyDocument:
