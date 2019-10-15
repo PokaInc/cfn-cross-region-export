@@ -2,10 +2,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: Defines the cross-region exporter resources
 Parameters:
-  SentryDsn:
-    Type: String
-    Description: Normally the misc project Sentry DSN
-    NoEcho: true
   SentryEnvironment:
     Type: String
     Description: Sentry project environment
@@ -37,7 +33,7 @@ Resources:
       Timeout: 300
       Environment:
         Variables:
-          SENTRY_DSN: !Ref SentryDsn
+          SENTRY_DSN: '{{resolve:secretsmanager:organization.secrets.common.sentry_dsn:SecretString:misc}}'
           GENERATED_STACK_NAME: !Sub '${AWS::StackName}-ImportsReplication'
           CROSS_STACK_REF_TABLE_NAME: !Ref CrossStackRefTable
           SENTRY_ENVIRONMENT: !Ref SentryEnvironment
