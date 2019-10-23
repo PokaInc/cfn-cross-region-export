@@ -39,23 +39,32 @@ def _lambda_handler():
         scan_response = cross_stack_ref_table.scan(ExclusiveStartKey=scan_response['LastEvaluatedKey'])
         cross_stack_references.extend(scan_response['Items'])
 
-    nested_template_urls = []
+    if cross_stack_references:
+        number_of_chunk = len(cross_stack_references) / MAX_RESOURCES_PER_TEMPLATE
+        max_group_size = int(max(min(RESSOURCE_BY_GROUP/number_of_chunk, RESSOURCE_BY_GROUP), 1))
 
-    number_of_chunk = len(cross_stack_references) / MAX_RESOURCES_PER_TEMPLATE
-    max_group_size = int(max(min(RESSOURCE_BY_GROUP/number_of_chunk, RESSOURCE_BY_GROUP), 1))
+        nested_template_urls = []
+        for items in _chunks(cross_stack_references, MAX_RESOURCES_PER_TEMPLATE):
+            nested_template_urls.append(_generate_nested_template(items, max_group_size))
 
-    for items in _chunks(cross_stack_references, MAX_RESOURCES_PER_TEMPLATE):
-        nested_template_urls.append(_generate_nested_template(items, max_group_size))
-
-    master_template_resources = {}
-
-    for i, url in enumerate(nested_template_urls):
-        master_template_resources[f"ParameterChunk{i}"] = {
+        master_template_resources = {}
+        for i, url in enumerate(nested_template_urls):
+            master_template_resources[f"ParameterChunk{i}"] = {
                 "Type": "AWS::CloudFormation::Stack",
                 "Properties": {
                     "TemplateURL": url
                 }
             }
+    else:
+        master_template_resources = {
+            'PlaceHolderParameter': {
+                'Type': 'AWS::SSM::Parameter',
+                'Properties': {
+                    'Value': {'Ref': "AWS::StackName"},
+                    'Type': 'String'
+                },
+            }
+        }
 
     master_template = {
         'AWSTemplateFormatVersion': '2010-09-09',
