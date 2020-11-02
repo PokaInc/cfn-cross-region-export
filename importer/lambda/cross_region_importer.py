@@ -155,7 +155,7 @@ def _get_cloudformation_exports(target_region, requested_exports):
                 exports[export['Name']] = {'Value': export['Value'], 'ExportingStackId': export['ExportingStackId']}
                 exports_tracker[export['Name']] = True
         if all(export_state for export_state in exports_tracker.values()): 
-            return exports
+            break
 
     return exports
 
