@@ -7,7 +7,7 @@ import boto3
 import requests
 from boto3.dynamodb.conditions import Attr
 from botocore.exceptions import ClientError
-from tenacity import retry, retry_if_exception_type, wait_random_exponential
+from tenacity import retry, retry_if_exception_type, wait_random_exponential, stop_after_delay
 
 RESOURCE_TYPE = 'Custom::CrossRegionImporter'
 SUCCESS = "SUCCESS"
@@ -88,7 +88,7 @@ def _lambda_handler(event, context):
 
 
 def _create_new_cross_stack_references(requested_exports, importer_context, table_info, physical_resource_id):
-    exports = _get_cloudformation_exports(table_info.target_region)
+    exports = _get_cloudformation_exports(table_info.target_region, requested_exports)
 
     try:
         response_data = {
@@ -137,19 +137,26 @@ def _delete_cross_stack_references(exports_to_remove, table_info, physical_resou
 
 
 @retry(
-    wait=wait_random_exponential(multiplier=1, max=30),
+    wait=wait_random_exponential(multiplier=2, max=30),
     retry=retry_if_exception_type(ClientError),
+    stop=stop_after_delay(270)
 )
-def _get_cloudformation_exports(target_region):
+def _get_cloudformation_exports(target_region, requested_exports):
     cloudformation_client = boto3.client('cloudformation', region_name=target_region)
     paginator = cloudformation_client.get_paginator('list_exports')
     exports_page_iterator = paginator.paginate()
-    exports = {
-        export['Name']: {
-            'Value': export['Value'],
-            'ExportingStackId': export['ExportingStackId'],
-        } for page in exports_page_iterator for export in page['Exports']
-    }
+
+    exports_tracker = {export_name: False for export_name in requested_exports.values()}
+    exports = {}
+    
+    for page in exports_page_iterator:
+        for export in page['Exports']:
+            if export['Name'] in exports_tracker:
+                exports[export['Name']] = {'Value': export['Value'], 'ExportingStackId': export['ExportingStackId']}
+                exports_tracker[export['Name']] = True
+        if all(export_state for export_state in exports_tracker.values()): 
+            break
+
     return exports
 
 
