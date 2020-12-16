@@ -139,7 +139,8 @@ def _delete_cross_stack_references(exports_to_remove, table_info, physical_resou
 @retry(
     wait=wait_random_exponential(multiplier=2, max=30),
     retry=retry_if_exception_type(ClientError),
-    stop=stop_after_delay(270)
+    stop=stop_after_delay(270),
+    reraise=True,
 )
 def _get_cloudformation_exports(target_region, requested_exports):
     cloudformation_client = boto3.client('cloudformation', region_name=target_region)
