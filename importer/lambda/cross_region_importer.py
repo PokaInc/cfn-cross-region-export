@@ -145,13 +145,13 @@ def _get_cloudformation_exports(target_region, requested_exports):
     export_page = _retry_safe_list_exports(cloudformation_client)
     _parse_exports(exports, exports_tracker, export_page)
 
-    if not all(export_state for export_state in exports_tracker.values()):
+    if not all(exports_tracker.values()):
         while 'NextToken' in export_page:
             export_page = _retry_safe_list_exports(
                 cloudformation_client, next_token=export_page['NextToken'])
             _parse_exports(exports, exports_tracker, export_page)
 
-            if all(export_state for export_state in exports_tracker.values()):
+            if all(exports_tracker.values()):
                 break
 
     return exports
