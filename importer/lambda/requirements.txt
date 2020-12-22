@@ -1,2 +1,2 @@
-requests==2.21.0
+requests==2.25.1
 tenacity==5.0.3

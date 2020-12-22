@@ -121,7 +121,7 @@ def _delete_cross_stack_references(exports_to_remove, table_info, physical_resou
     dynamodb_resource = boto3.resource('dynamodb', region_name=table_info.target_region)
     cross_stack_ref_table = dynamodb_resource.Table(table_info.table_name)
 
-    for label, export_name in exports_to_remove.items():
+    for export_name in exports_to_remove.values():
         cross_stack_ref_id = f'{physical_resource_id}|{export_name}'
         print(f'Removing cross-stack ref: {cross_stack_ref_id}')
         try:
@@ -136,28 +136,43 @@ def _delete_cross_stack_references(exports_to_remove, table_info, physical_resou
                 raise
 
 
-@retry(
-    wait=wait_random_exponential(multiplier=2, max=30),
-    retry=retry_if_exception_type(ClientError),
-    stop=stop_after_delay(270)
-)
 def _get_cloudformation_exports(target_region, requested_exports):
     cloudformation_client = boto3.client('cloudformation', region_name=target_region)
-    paginator = cloudformation_client.get_paginator('list_exports')
-    exports_page_iterator = paginator.paginate()
 
     exports_tracker = {export_name: False for export_name in requested_exports.values()}
     exports = {}
-    
-    for page in exports_page_iterator:
-        for export in page['Exports']:
-            if export['Name'] in exports_tracker:
-                exports[export['Name']] = {'Value': export['Value'], 'ExportingStackId': export['ExportingStackId']}
-                exports_tracker[export['Name']] = True
-        if all(export_state for export_state in exports_tracker.values()): 
-            break
+
+    export_page = _retry_safe_list_exports(cloudformation_client)
+    _parse_exports(exports, exports_tracker, export_page)
+
+    if not all(exports_tracker.values()):
+        while 'NextToken' in export_page:
+            export_page = _retry_safe_list_exports(
+                cloudformation_client, next_token=export_page['NextToken'])
+            _parse_exports(exports, exports_tracker, export_page)
+
+            if all(exports_tracker.values()):
+                break
 
     return exports
+
+
+def _parse_exports(exports, exports_tracker, export_page):
+    for export in export_page['Exports']:
+        if export['Name'] in exports_tracker:
+            exports[export['Name']] = {
+                'Value': export['Value'], 'ExportingStackId': export['ExportingStackId']}
+            exports_tracker[export['Name']] = True
+
+
+@retry(
+    wait=wait_random_exponential(multiplier=2, max=30),
+    retry=retry_if_exception_type(ClientError),
+    stop=stop_after_delay(270),
+    reraise=True,
+)
+def _retry_safe_list_exports(cloudformation_client, next_token=None):
+    return cloudformation_client.list_exports(NextToken=next_token) if next_token else cloudformation_client.list_exports()
 
 
 class ExportNotFoundError(Exception):
