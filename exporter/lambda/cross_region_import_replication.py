@@ -101,7 +101,7 @@ def _generate_nested_template(cross_stack_references):
     template = {
         "AWSTemplateFormatVersion": "2010-09-09",
         "Resources": {
-            "PlaceHolderParameter": {"Type": "AWS::CloudFormation::WaitConditionHandle", "Properties": {}},
+            "PlaceHolderResource": {"Type": "AWS::CloudFormation::WaitConditionHandle", "Properties": {}},
         },
         "Outputs": {},
     }
