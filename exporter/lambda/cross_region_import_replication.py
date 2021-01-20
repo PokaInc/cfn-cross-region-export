@@ -41,7 +41,7 @@ def _lambda_handler():
             master_template_resources[f"Chunk{i}"] = {"Type": "AWS::CloudFormation::Stack", "Properties": {"TemplateURL": url}}
     else:
         master_template_resources = {
-            "PlaceHolderParameter": {
+            "PlaceHolderResource": {
                 "Type": "AWS::CloudFormation::WaitConditionHandle",
                 "Properties": {},
             }
@@ -101,7 +101,7 @@ def _generate_nested_template(cross_stack_references):
     template = {
         "AWSTemplateFormatVersion": "2010-09-09",
         "Resources": {
-            "PlaceHolderParameter": {"Type": "AWS::CloudFormation::WaitConditionHandle", "Properties": {}},
+            "PlaceHolderResource": {"Type": "AWS::CloudFormation::WaitConditionHandle", "Properties": {}},
         },
         "Outputs": {},
     }
