@@ -10,7 +10,7 @@ from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 
 sentry_sdk.init(integrations=[AwsLambdaIntegration(timeout_warning=True)])
 
-MAX_RESOURCES_PER_TEMPLATE = 200
+MAX_OUTPUTS_PER_TEMPLATE = 200
 
 
 def lambda_handler(*_):
@@ -33,7 +33,7 @@ def _lambda_handler():
 
     if cross_stack_references:
         nested_template_urls = []
-        for items in _chunks(cross_stack_references, MAX_RESOURCES_PER_TEMPLATE):
+        for items in _chunks(cross_stack_references, MAX_OUTPUTS_PER_TEMPLATE):
             nested_template_urls.append(_generate_nested_template(items))
 
         master_template_resources = {}
