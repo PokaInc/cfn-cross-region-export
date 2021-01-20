@@ -1,5 +1,5 @@
 ---
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: Defines the cross-region exporter resources
 Parameters:
   SentryDsn:
@@ -15,11 +15,11 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       AttributeDefinitions:
-      - AttributeName: CrossStackRefId
-        AttributeType: S
+        - AttributeName: CrossStackRefId
+          AttributeType: S
       KeySchema:
-      - AttributeName: CrossStackRefId
-        KeyType: HASH
+        - AttributeName: CrossStackRefId
+          KeyType: HASH
       BillingMode: PAY_PER_REQUEST
       StreamSpecification:
         StreamViewType: KEYS_ONLY
@@ -38,15 +38,15 @@ Resources:
       Environment:
         Variables:
           SENTRY_DSN: !Ref SentryDsn
-          GENERATED_STACK_NAME: !Sub '${AWS::StackName}-ImportsReplication'
+          GENERATED_STACK_NAME: !Sub "${AWS::StackName}-ImportsReplication"
           CROSS_STACK_REF_TABLE_NAME: !Ref CrossStackRefTable
           SENTRY_ENVIRONMENT: !Ref SentryEnvironment
           TEMPLATE_BUCKET: !Ref CrossStackRefBucket
       Tags:
-      - Key: SecurityClassification
-        Value: Green
-      - Key: Component
-        Value: CrossRegionImportReplicationLambdaFunction
+        - Key: SecurityClassification
+          Value: Green
+        - Key: Component
+          Value: CrossRegionImportReplicationLambdaFunction
 
   CrossRegionImportReplicationLambdaFunctionLambdaRole:
     Type: AWS::IAM::Role
@@ -62,54 +62,54 @@ Resources:
               - sts:AssumeRole
       Path: /
       Policies:
-      - PolicyName: ReadAndUpdateDynamoDb
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-          - Effect: Allow
-            Action:
-            - dynamodb:Scan
-            Resource: !GetAtt CrossStackRefTable.Arn
-      - PolicyName: CreateAndUpdateGeneratedCloudformation
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-          - Effect: Allow
-            Action:
-            - cloudformation:CreateStack
-            - cloudformation:UpdateStack
-            Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}-ImportsReplication/*'
-      - PolicyName: PutAndDeleteSsmParameter
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-          - Effect: Allow
-            Action:
-            - ssm:PutParameter
-            - ssm:DeleteParameter
-            - ssm:AddTagsToResource
-            Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*'
-      - PolicyName: UploadTemplateToS3
-        PolicyDocument:
-          Statement:
-          - Effect: "Allow"
-            Action:
-            - s3:PutObject
-            - s3:GetObject
-            Resource: !Sub '${CrossStackRefBucket.Arn}/*'
-      - PolicyName: AccessDynamoStream
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-          - Effect: Allow
-            Action:
-            - dynamodb:GetRecords
-            - dynamodb:GetShardIterator
-            - dynamodb:DescribeStream
-            - dynamodb:ListStreams
-            Resource: !GetAtt CrossStackRefTable.StreamArn
+        - PolicyName: ReadAndUpdateDynamoDb
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:Scan
+                Resource: !GetAtt CrossStackRefTable.Arn
+        - PolicyName: CreateAndUpdateGeneratedCloudformation
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:CreateStack
+                  - cloudformation:UpdateStack
+                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}-ImportsReplication/*"
+        - PolicyName: PutAndDeleteSsmParameter
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                  - ssm:DeleteParameter
+                  - ssm:AddTagsToResource
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/*"
+        - PolicyName: UploadTemplateToS3
+          PolicyDocument:
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - s3:PutObject
+                  - s3:GetObject
+                Resource: !Sub "${CrossStackRefBucket.Arn}/*"
+        - PolicyName: AccessDynamoStream
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:DescribeStream
+                  - dynamodb:ListStreams
+                Resource: !GetAtt CrossStackRefTable.StreamArn
       ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
   CrossRegionImporterLambdaEventSourceMapping:
     Type: AWS::Lambda::EventSourceMapping
@@ -117,7 +117,7 @@ Resources:
       EventSourceArn: !GetAtt CrossStackRefTable.StreamArn
       FunctionName: !Ref CrossRegionImportReplicationLambdaFunction
       StartingPosition: TRIM_HORIZON
-      
+
 Outputs:
   CrossStackRefTableArn:
     Value: !GetAtt CrossStackRefTable.Arn

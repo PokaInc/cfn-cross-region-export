@@ -8,7 +8,7 @@ import botocore
 import sentry_sdk
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 
-sentry_sdk.init(integrations=[AwsLambdaIntegration()])
+sentry_sdk.init(integrations=[AwsLambdaIntegration(timeout_warning=True)])
 
 MAX_RESOURCES_PER_TEMPLATE = 200
 
@@ -105,7 +105,6 @@ def _generate_nested_template(cross_stack_references):
         },
         "Outputs": {},
     }
-    output_count = 0
 
     for ref in cross_stack_references:
         ref_id = _generate_hash(ref["CrossStackRefId"])
@@ -115,8 +114,6 @@ def _generate_nested_template(cross_stack_references):
         }
 
         template["Outputs"][ref_id] = output
-
-        output_count += 1
 
     template_name = f'{os.environ["GENERATED_STACK_NAME"]}.{uuid4()}'
 
