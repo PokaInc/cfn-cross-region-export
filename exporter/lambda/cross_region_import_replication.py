@@ -41,7 +41,7 @@ def _lambda_handler():
             master_template_resources[f"Chunk{i}"] = {"Type": "AWS::CloudFormation::Stack", "Properties": {"TemplateURL": url}}
     else:
         master_template_resources = {
-            "PlaceHolderParameter": {
+            "PlaceHolderResource": {
                 "Type": "AWS::CloudFormation::WaitConditionHandle",
                 "Properties": {},
             }
