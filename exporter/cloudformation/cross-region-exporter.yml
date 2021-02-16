@@ -10,7 +10,17 @@ Parameters:
     Type: String
     Description: Sentry project environment
 
+  GitTag:
+    Type: String
+
 Resources:
+  VersionInventoryParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/version-inventory/${AWS::StackName}"
+      Type: String
+      Value: !Ref GitTag
+
   CrossStackRefTable:
     Type: AWS::DynamoDB::Table
     Properties:
