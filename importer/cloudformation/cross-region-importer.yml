@@ -5,16 +5,16 @@ Parameters:
   CrossStackRefTableArn:
     Type: String
 
-  GitTag:
+  Version:
     Type: String
 
 Resources:
-  VersionInventoryParameter:
+  ProjectVersionParameter:
     Type: AWS::SSM::Parameter
     Properties:
-      Name: !Sub "/version-inventory/${AWS::StackName}"
+      Name: !Sub "/project-versions/cfn-cross-region-export/${AWS::StackName}"
       Type: String
-      Value: !Ref GitTag
+      Value: !Sub '{"Version": "${Version}", "RepositoryUrl": "https://github.com/PokaInc/cfn-cross-region-export"}'
 
   CrossRegionImporterResourceRole:
     Type: AWS::IAM::Role
