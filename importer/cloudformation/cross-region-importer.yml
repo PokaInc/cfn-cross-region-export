@@ -1,45 +1,55 @@
 ---
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: Defines the cross-region importer custom resource
 Parameters:
   CrossStackRefTableArn:
     Type: String
 
+  Version:
+    Type: String
+
 Resources:
+  ProjectVersionParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/project-versions/cfn-cross-region-export/${AWS::StackName}"
+      Type: String
+      Value: !Sub '{"Version": "${Version}", "RepositoryUrl": "https://github.com/PokaInc/cfn-cross-region-export"}'
+
   CrossRegionImporterResourceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: "2012-10-17"
         Statement:
-        - Sid: ''
-          Effect: Allow
-          Principal:
-            Service: lambda.amazonaws.com
-          Action: sts:AssumeRole
+          - Sid: ""
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
       Path: /
       Policies:
-      - PolicyName: ListExportsPolicy
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-          - Effect: Allow
-            Action:
-            - cloudformation:ListExports
-            Resource: "*"
-      - PolicyName: WriteCrossStackRefTableArn
-        PolicyDocument:
-          Version: "2012-10-17"
-          Statement:
-          - Effect: Allow
-            Action:
-            - dynamodb:GetItem
-            - dynamodb:PutItem
-            - dynamodb:DeleteItem
-            - dynamodb:Scan
-            Resource: !Ref CrossStackRefTableArn
+        - PolicyName: ListExportsPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudformation:ListExports
+                Resource: "*"
+        - PolicyName: WriteCrossStackRefTableArn
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Scan
+                Resource: !Ref CrossStackRefTableArn
       ManagedPolicyArns:
-      - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
   CrossRegionImporterCustomResourceLambdaFunction:
     Type: AWS::Lambda::Function
@@ -48,15 +58,15 @@ Resources:
       Role: !GetAtt CrossRegionImporterResourceRole.Arn
       Code: ../../dist/cross_region_importer.zip
       Runtime: python3.6
-      Timeout: '300'
+      Timeout: 300
       Environment:
         Variables:
           CROSS_STACK_REF_TABLE_ARN: !Ref CrossStackRefTableArn
       Tags:
-      - Key: SecurityClassification
-        Value: Green
-      - Key: Component
-        Value: CrossRegionImporterCustomResource
+        - Key: SecurityClassification
+          Value: Green
+        - Key: Component
+          Value: CrossRegionImporterCustomResource
 
 Outputs:
   CrossRegionImporterServiceToken:
@@ -64,6 +74,5 @@ Outputs:
     Export:
       Name:
         Fn::Sub:
-        - '${TargetRegion}:CrossRegionImporterServiceToken'
-        - TargetRegion: !Select [3, !Split [':', !Ref CrossStackRefTableArn]]
-
+          - "${TargetRegion}:CrossRegionImporterServiceToken"
+          - TargetRegion: !Select [3, !Split [":", !Ref CrossStackRefTableArn]]

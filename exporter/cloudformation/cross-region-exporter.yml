@@ -10,7 +10,17 @@ Parameters:
     Type: String
     Description: Sentry project environment
 
+  Version:
+    Type: String
+
 Resources:
+  ProjectVersionParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub "/project-versions/cfn-cross-region-export/${AWS::StackName}"
+      Type: String
+      Value: !Sub '{"Version": "${Version}", "RepositoryUrl": "https://github.com/PokaInc/cfn-cross-region-export"}'
+
   CrossStackRefTable:
     Type: AWS::DynamoDB::Table
     Properties:
