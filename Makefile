@@ -29,7 +29,7 @@ package-importer: check-bucket
 
 deploy-importer: package-importer
 	$(call check_defined, CROSS_STACK_REF_TABLE_ARN, Ex: make deploy-importer CROSS_STACK_REF_TABLE_ARN=arn:aws:dynamodb:region:accountid:table/tablename)
-	@sam deploy --template-file $(IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH) --stack-name $(IMPORTER_STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides CrossStackRefTableArn=$(CROSS_STACK_REF_TABLE_ARN) GitTag=$(GIT_TAG)
+	@sam deploy --template-file $(IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH) --stack-name $(IMPORTER_STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides CrossStackRefTableArn=$(CROSS_STACK_REF_TABLE_ARN) Version=$(VERSION)
 
 package-exporter: check-bucket
 	@./package_lambda.sh exporter/lambda cross_region_import_replication
