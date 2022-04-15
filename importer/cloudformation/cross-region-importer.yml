@@ -57,7 +57,7 @@ Resources:
       Handler: cross_region_importer.lambda_handler
       Role: !GetAtt CrossRegionImporterResourceRole.Arn
       Code: ../../dist/cross_region_importer.zip
-      Runtime: python3.6
+      Runtime: python3.9
       Timeout: 300
       Environment:
         Variables:
