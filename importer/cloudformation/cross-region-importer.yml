@@ -9,13 +9,6 @@ Parameters:
     Type: String
 
 Resources:
-  ProjectVersionParameter:
-    Type: AWS::SSM::Parameter
-    Properties:
-      Name: !Sub "/project-versions/cfn-cross-region-export/${AWS::StackName}"
-      Type: String
-      Value: !Sub '{"Version": "${Version}", "RepositoryUrl": "https://github.com/PokaInc/cfn-cross-region-export"}'
-
   CrossRegionImporterResourceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -76,3 +69,9 @@ Outputs:
         Fn::Sub:
           - "${TargetRegion}:CrossRegionImporterServiceToken"
           - TargetRegion: !Select [3, !Split [":", !Ref CrossStackRefTableArn]]
+
+  ProjectVersion:
+    Value: !Ref Version
+
+  RepoUrl:
+    Value: https://github.com/PokaInc/cfn-cross-region-export
