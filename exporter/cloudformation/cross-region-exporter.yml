@@ -37,6 +37,7 @@ Resources:
       Handler: cross_region_import_replication.lambda_handler
       Role: !GetAtt CrossRegionImportReplicationLambdaFunctionLambdaRole.Arn
       Runtime: python3.9
+      MemorySize: 160
       Timeout: 300
       Environment:
         Variables:
