@@ -7,7 +7,7 @@ import boto3
 import botocore
 import sentry_sdk
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
-from tenacity import retry, retry_if_exception_type, stop_after_attempt
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 sentry_sdk.init(integrations=[AwsLambdaIntegration(timeout_warning=True)])
 
@@ -76,7 +76,7 @@ def _lambda_handler():
 
 
 @retry(
-    wait=45,
+    wait=wait_fixed(45),
     retry=retry_if_exception_type(botocore.exceptions.ClientError),
     stop=stop_after_attempt(3),
     reraise=True,
