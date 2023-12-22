@@ -78,7 +78,7 @@ def _lambda_handler():
 @retry(
     wait=wait_fixed(45),
     retry=retry_if_exception_type(botocore.exceptions.ClientError),
-    stop=stop_after_attempt(3),
+    stop=stop_after_attempt(1),
     reraise=True,
 )
 def _update_stack(template_url):
