@@ -7,10 +7,13 @@ import boto3
 import botocore
 import sentry_sdk
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_fixed
 
 sentry_sdk.init(integrations=[AwsLambdaIntegration(timeout_warning=True)])
 
 MAX_OUTPUTS_PER_TEMPLATE = 200
+
+cloudformation_client = boto3.client("cloudformation")
 
 
 def lambda_handler(*_):
@@ -53,16 +56,12 @@ def _lambda_handler():
         "Resources": master_template_resources,
     }
 
-    cloudformation_client = boto3.client("cloudformation")
 
     _upload_template(os.environ["GENERATED_STACK_NAME"], json.dumps(master_template))
     template_url = _build_unsigned_url(os.environ["GENERATED_STACK_NAME"])
 
     try:
-        cloudformation_client.update_stack(
-            StackName=os.environ["GENERATED_STACK_NAME"],
-            TemplateURL=template_url,
-        )
+        _update_stack(template_url)
     except botocore.exceptions.ClientError as e:
         message = e.response["Error"]["Message"]
         if "does not exist" in message:
@@ -72,8 +71,23 @@ def _lambda_handler():
             )
         elif "No updates are to be performed." in message:
             print("No updates are to be performed.")
+        elif "UPDATE_IN_PROGRESS" in message:
+            print("Stack update in progress")
         else:
             raise
+
+
+@retry(
+    wait=wait_fixed(45),
+    retry=retry_if_exception_type(botocore.exceptions.ClientError),
+    stop=stop_after_attempt(1),
+    reraise=True,
+)
+def _update_stack(template_url):
+    cloudformation_client.update_stack(
+            StackName=os.environ["GENERATED_STACK_NAME"],
+            TemplateURL=template_url,
+        )
 
 
 def _generate_hash(string_to_hash):
