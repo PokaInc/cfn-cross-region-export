@@ -5,12 +5,11 @@ name = "pypi"
 
 [packages]
 tenacity = "*"
-boto = "*"
 boto3 = "*"
 requests = "*"
-aws-sam-cli = "*"
 
 [dev-packages]
+aws-sam-cli = "*"
 
 [requires]
 python_version = "3.9"
