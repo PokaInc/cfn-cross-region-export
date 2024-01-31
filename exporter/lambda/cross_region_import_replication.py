@@ -71,7 +71,7 @@ def _lambda_handler():
             )
         elif "No updates are to be performed." in message:
             print("No updates are to be performed.")
-        elif "UPDATE_IN_PROGRESS" in message:
+        elif any(status in message for status in ("UPDATE_IN_PROGRESS", "UPDATE_COMPLETE_CLEANUP_IN_PROGRESS")):
             print("Stack update in progress")
         else:
             raise
