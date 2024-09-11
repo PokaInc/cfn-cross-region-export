@@ -82,7 +82,9 @@ Resources:
                 Action:
                   - cloudformation:CreateStack
                   - cloudformation:UpdateStack
-                Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}-ImportsReplication/*"
+                Resource: 
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}-ImportsReplication/*"
+                  - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}-ImportsReplication-Chunk*-*/*"
         - PolicyName: PutAndDeleteSsmParameter
           PolicyDocument:
             Version: "2012-10-17"
