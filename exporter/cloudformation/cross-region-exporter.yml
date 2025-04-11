@@ -82,6 +82,7 @@ Resources:
                 Action:
                   - cloudformation:CreateStack
                   - cloudformation:UpdateStack
+                  - cloudformation:DeleteStack
                 Resource: 
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}-ImportsReplication/*"
                   - !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}-ImportsReplication-Chunk*-*/*"
