@@ -18,7 +18,7 @@ __check_defined = \
 		$(error Undefined $1$(if $2, ($2))))
 
 install:
-	@pipenv install --dev
+	@pipenv install
 
 check-bucket:
 	@aws s3api head-bucket --bucket $(BUCKET_NAME) &> /dev/null || aws s3 mb s3://$(BUCKET_NAME)
