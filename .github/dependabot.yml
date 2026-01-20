@@ -1,0 +1,17 @@
+version: 2
+updates:
+  - package-ecosystem: pip
+    directories:
+      - "/"
+      - "/importer/lambda"
+      - "/exporter/lambda"
+    schedule:
+      interval: monthly
+    groups:
+      python-deps:
+        patterns:
+          - "*"
+        # Major updates will have individual PRs
+        update-types:
+          - "patch"
+          - "minor"
