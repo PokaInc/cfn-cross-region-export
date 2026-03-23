@@ -10,6 +10,9 @@ botocore = "==1.40.76"
 requests = "==2.32.5"
 sentry-sdk = "==2.53.0"
 
+[custom-resource]
+crhelper = "==2.0.12"
+
 [dev-packages]
 aws-sam-cli = "*"
 

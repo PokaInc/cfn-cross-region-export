@@ -125,6 +125,16 @@ Resources:
       FunctionName: !Ref CrossRegionImportReplicationLambdaFunction
       StartingPosition: TRIM_HORIZON
 
+  SetParameterLambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code: ../../dist/cross_region_import_replication.zip
+      Handler: cross_region_import_replication.lambda_handler
+      Role: !GetAtt CrossRegionImportReplicationLambdaFunctionLambdaRole.Arn
+      Runtime: python3.13
+      MemorySize: 160
+      Timeout: 300
+
 Outputs:
   CrossStackRefTableArn:
     Value: !GetAtt CrossStackRefTable.Arn
