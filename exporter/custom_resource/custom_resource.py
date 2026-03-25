@@ -16,17 +16,37 @@ try:
 
 except Exception as e:
     helper.init_failure(e)
+    exit()
+
+
+def _format_value(event, properties_key="ResourceProperties"):
+    table_arn = event[properties_key]["TableArn"]
+    return f"{CURRENT_REGION}|{table_arn}"
+
+
+def _get_values():
+    response = ssm_client.get_parameter(Name=SSM_PARAMETER_NAME)
+    return response["Parameter"]["Value"].split(",")
+
+
+def _save_values(values):
+    if values:
+        ssm_client.put_parameter(
+            Name=SSM_PARAMETER_NAME,
+            Value=",".join(values),
+            Type="String",
+            Overwrite=True,
+        )
+    else:
+        ssm_client.delete_parameter(Name=SSM_PARAMETER_NAME)
 
 
 @helper.create
 def create(event, context):
-    resource_properties = event["ResourceProperties"]
-    table_arn = resource_properties["TableArn"]
-    formatted_value = f"{CURRENT_REGION}|{table_arn}"
+    formatted_value = _format_value(event)
 
     try:
-        response = ssm_client.get_parameter(Name=SSM_PARAMETER_NAME)
-        values = response["Parameter"]["Value"].split(",")
+        values = _get_values()
         values.append(formatted_value)
     except ssm_client.exceptions.ParameterNotFound:
         values = [formatted_value]
@@ -34,53 +54,34 @@ def create(event, context):
         logger.error(f"Error fetching parameter: {e}")
         raise
 
-    ssm_client.put_parameter(
-        Name=SSM_PARAMETER_NAME,
-        Value=",".join(values),
-        Type="String",
-        Overwrite=True,
-    )
+    _save_values(values)
 
 
 @helper.update
 def update(event, context):
-    resource_properties = event["ResourceProperties"]
-    table_arn = resource_properties["TableArn"]
-    formatted_value = f"{CURRENT_REGION}|{table_arn}"
-
-    old_resource_properties = event["OldResourceProperties"]
-    old_table_arn = old_resource_properties["TableArn"]
-    old_formatted_value = f"{CURRENT_REGION}|{old_table_arn}"
+    formatted_value = _format_value(event)
+    old_formatted_value = _format_value(event, "OldResourceProperties")
 
     if old_formatted_value == formatted_value:
         return
 
     try:
-        response = ssm_client.get_parameter(Name=SSM_PARAMETER_NAME)
-        values = response["Parameter"]["Value"].split(",")
+        values = _get_values()
         values.remove(old_formatted_value)
         values.append(formatted_value)
     except Exception as e:
         logger.error(f"Error while updating parameter: {e}")
         raise
 
-    ssm_client.put_parameter(
-        Name=SSM_PARAMETER_NAME,
-        Value=",".join(values),
-        Type="String",
-        Overwrite=True,
-    )
+    _save_values(values)
 
 
 @helper.delete
 def delete(event, context):
-    resource_properties = event["ResourceProperties"]
-    table_arn = resource_properties["TableArn"]
-    formatted_value = f"{CURRENT_REGION}|{table_arn}"
+    formatted_value = _format_value(event)
 
     try:
-        response = ssm_client.get_parameter(Name=SSM_PARAMETER_NAME)
-        values = response["Parameter"]["Value"].split(",")
+        values = _get_values()
         values.remove(formatted_value)
     except ssm_client.exceptions.ParameterNotFound:
         return
@@ -90,12 +91,4 @@ def delete(event, context):
         logger.error(f"Error fetching parameter: {e}")
         raise
 
-    if len(values) != 0:
-        ssm_client.put_parameter(
-            Name=SSM_PARAMETER_NAME,
-            Value=",".join(values),
-            Type="String",
-            Overwrite=True,
-        )
-    else:
-        ssm_client.delete_parameter(Name=SSM_PARAMETER_NAME)
+    _save_values(values)

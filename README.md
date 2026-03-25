@@ -61,20 +61,34 @@ to the DynamoDB table. the following environment variable also need to be set:
 
 #### Exporter
 
-Start by deploying the **Exporter**
+Start by deploying the **Exporter**. You can provide `SENTRY_DSN` and `SENTRY_ENV` either via command-line arguments or by creating a `.env` file at the root of the project:
+
+```
+# .env
+SENTRY_DSN=https://...@sentry.io/...
+SENTRY_ENV=prod
+```
+
+Then deploy:
 
 ```
 export AWS_DEFAULT_REGION=<EXPORTER_REGION>
-make deploy-exporter SENTRY_ENV=prod SENTRY_DSN=https://...@sentry.io/... 
+make deploy-exporter
+```
+
+You can also pass the values directly on the command line (this overrides `.env`):
+
+```
+make deploy-exporter SENTRY_DSN=https://...@sentry.io/... SENTRY_ENV=prod
 ```
 
 #### Importer
 
-You can find the `CROSS_STACK_REF_TABLE_ARN` in the output section of the **Exporter** stack we've just deployed.
+The importer deployment is now automated. It reads the DynamoDB table ARNs published by the **Exporter** from an SSM parameter and deploys an **Importer** stack for each one in the current region:
 
 ```
 export AWS_DEFAULT_REGION=<IMPORTER_REGION>
-make deploy-importer CROSS_STACK_REF_TABLE_ARN=...
+make deploy-importer
 ```
 
 ### Development
