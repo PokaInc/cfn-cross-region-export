@@ -25,5 +25,5 @@ for i in "${TABLES_ARN[@]}"; do
   IMPORTER_STACK_NAME="$SOURCE_REGION-CrossRegionImporter"
 
   echo "Deploying stack for table ARN: $IMPORTER_STACK_NAME"
-  # sam deploy --template-file "$IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH" --stack-name "$IMPORTER_STACK_NAME" --capabilities CAPABILITY_IAM --parameter-overrides CrossStackRefTableArn="$TABLE_ARN" Version="$VERSION" --no-fail-on-empty-changeset
+  sam deploy --template-file "$IMPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH" --stack-name "$IMPORTER_STACK_NAME" --capabilities CAPABILITY_IAM --parameter-overrides CrossStackRefTableArn="$TABLE_ARN" Version="$VERSION" --no-fail-on-empty-changeset
 done
