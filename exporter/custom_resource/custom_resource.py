@@ -16,7 +16,6 @@ try:
 
 except Exception as e:
     helper.init_failure(e)
-    exit()
 
 
 def _format_value(event, properties_key="ResourceProperties"):
@@ -46,10 +45,10 @@ def create(event, context):
     formatted_value = _format_value(event)
 
     try:
-        values = _get_values()
-        values.append(formatted_value)
+        values = set(_get_values())
+        values.add(formatted_value)
     except ssm_client.exceptions.ParameterNotFound:
-        values = [formatted_value]
+        values = {formatted_value}
     except Exception as e:
         logger.error(f"Error fetching parameter: {e}")
         raise
@@ -66,9 +65,9 @@ def update(event, context):
         return
 
     try:
-        values = _get_values()
-        values.remove(old_formatted_value)
-        values.append(formatted_value)
+        values = set(_get_values())
+        values.discard(old_formatted_value)
+        values.add(formatted_value)
     except Exception as e:
         logger.error(f"Error while updating parameter: {e}")
         raise
@@ -81,11 +80,9 @@ def delete(event, context):
     formatted_value = _format_value(event)
 
     try:
-        values = _get_values()
-        values.remove(formatted_value)
+        values = set(_get_values())
+        values.discard(formatted_value)
     except ssm_client.exceptions.ParameterNotFound:
-        return
-    except ValueError:
         return
     except Exception as e:
         logger.error(f"Error fetching parameter: {e}")
