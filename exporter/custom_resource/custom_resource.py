@@ -25,7 +25,8 @@ def _format_value(event, properties_key="ResourceProperties"):
 
 def _get_values():
     response = ssm_client.get_parameter(Name=SSM_PARAMETER_NAME)
-    return response["Parameter"]["Value"].split(",")
+    value = response["Parameter"]["Value"]
+    return value.split(",") if value else []
 
 
 def _save_values(values):
