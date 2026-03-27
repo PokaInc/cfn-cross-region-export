@@ -36,9 +36,6 @@ def update(event, context):
     formatted_value = format_value(event)
     old_formatted_value = format_value(event, "OldResourceProperties")
 
-    if old_formatted_value == formatted_value:
-        return
-
     values = set(get_values())
     values.discard(old_formatted_value)
     values.add(formatted_value)
