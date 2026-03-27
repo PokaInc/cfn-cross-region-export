@@ -14,7 +14,7 @@ sentry-sdk = "==2.56.0"
 crhelper = "==2.0.12"
 
 [dev-packages]
-aws-sam-cli = "==1.157.1"
+aws-sam-cli = "*"
 
 [requires]
 python_version = "3.13"
