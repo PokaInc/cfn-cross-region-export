@@ -5,10 +5,13 @@ name = "pypi"
 
 [packages]
 tenacity = "==9.1.4"
-boto3 = "==1.40.76"
-botocore = "==1.40.76"
-requests = "==2.33.0"
-sentry-sdk = "==2.53.0"
+boto3 = "==1.42.70"
+botocore = "==1.42.70"
+requests = "==2.32.5"
+sentry-sdk = "==2.56.0"
+
+[custom-resource]
+crhelper = "==2.0.12"
 
 [dev-packages]
 aws-sam-cli = "*"

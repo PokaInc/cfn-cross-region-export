@@ -1,0 +1,79 @@
+from crhelper import CfnResource
+
+helper = CfnResource(boto_level="WARNING")
+
+try:
+    import os
+    import logging
+    import boto3
+
+    TARGET_REGION = "us-east-1"
+    CURRENT_REGION = os.environ["AWS_REGION"]
+    SSM_PARAMETER_NAME = "/cfn-cross-region-exporter/table-arns"
+
+    logger = logging.getLogger()
+    ssm_client = boto3.client("ssm", region_name=TARGET_REGION)
+
+except Exception as e:
+    helper.init_failure(e)
+
+
+@helper.create
+def create(event, context):
+    formatted_value = format_value(event)
+
+    try:
+        values = set(get_values())
+        values.add(formatted_value)
+    except ssm_client.exceptions.ParameterNotFound:
+        values = {formatted_value}
+
+    save_values(values)
+
+
+@helper.update
+def update(event, context):
+    formatted_value = format_value(event)
+    old_formatted_value = format_value(event, "OldResourceProperties")
+
+    values = set(get_values())
+    values.discard(old_formatted_value)
+    values.add(formatted_value)
+
+    save_values(values)
+
+
+@helper.delete
+def delete(event, context):
+    formatted_value = format_value(event)
+
+    try:
+        values = set(get_values())
+        values.discard(formatted_value)
+    except ssm_client.exceptions.ParameterNotFound:
+        return
+
+    save_values(values)
+
+
+def format_value(event, properties_key="ResourceProperties"):
+    table_arn = event[properties_key]["TableArn"]
+    return f"{CURRENT_REGION}|{table_arn}"
+
+
+def get_values():
+    response = ssm_client.get_parameter(Name=SSM_PARAMETER_NAME)
+    value = response["Parameter"]["Value"]
+    return value.split(",") if value else []
+
+
+def save_values(values):
+    if values:
+        ssm_client.put_parameter(
+            Name=SSM_PARAMETER_NAME,
+            Value=",".join(values),
+            Type="String",
+            Overwrite=True,
+        )
+    else:
+        ssm_client.delete_parameter(Name=SSM_PARAMETER_NAME)
