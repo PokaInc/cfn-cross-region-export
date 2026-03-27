@@ -27,9 +27,6 @@ def create(event, context):
         values.add(formatted_value)
     except ssm_client.exceptions.ParameterNotFound:
         values = {formatted_value}
-    except Exception as e:
-        logger.error(f"Error fetching parameter: {e}")
-        raise
 
     _save_values(values)
 
@@ -42,13 +39,9 @@ def update(event, context):
     if old_formatted_value == formatted_value:
         return
 
-    try:
-        values = set(_get_values())
-        values.discard(old_formatted_value)
-        values.add(formatted_value)
-    except Exception as e:
-        logger.error(f"Error while updating parameter: {e}")
-        raise
+    values = set(_get_values())
+    values.discard(old_formatted_value)
+    values.add(formatted_value)
 
     _save_values(values)
 
@@ -62,9 +55,6 @@ def delete(event, context):
         values.discard(formatted_value)
     except ssm_client.exceptions.ParameterNotFound:
         return
-    except Exception as e:
-        logger.error(f"Error fetching parameter: {e}")
-        raise
 
     _save_values(values)
 
