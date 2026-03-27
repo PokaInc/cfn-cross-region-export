@@ -20,57 +20,57 @@ except Exception as e:
 
 @helper.create
 def create(event, context):
-    formatted_value = _format_value(event)
+    formatted_value = format_value(event)
 
     try:
-        values = set(_get_values())
+        values = set(get_values())
         values.add(formatted_value)
     except ssm_client.exceptions.ParameterNotFound:
         values = {formatted_value}
 
-    _save_values(values)
+    save_values(values)
 
 
 @helper.update
 def update(event, context):
-    formatted_value = _format_value(event)
-    old_formatted_value = _format_value(event, "OldResourceProperties")
+    formatted_value = format_value(event)
+    old_formatted_value = format_value(event, "OldResourceProperties")
 
     if old_formatted_value == formatted_value:
         return
 
-    values = set(_get_values())
+    values = set(get_values())
     values.discard(old_formatted_value)
     values.add(formatted_value)
 
-    _save_values(values)
+    save_values(values)
 
 
 @helper.delete
 def delete(event, context):
-    formatted_value = _format_value(event)
+    formatted_value = format_value(event)
 
     try:
-        values = set(_get_values())
+        values = set(get_values())
         values.discard(formatted_value)
     except ssm_client.exceptions.ParameterNotFound:
         return
 
-    _save_values(values)
+    save_values(values)
 
 
-def _format_value(event, properties_key="ResourceProperties"):
+def format_value(event, properties_key="ResourceProperties"):
     table_arn = event[properties_key]["TableArn"]
     return f"{CURRENT_REGION}|{table_arn}"
 
 
-def _get_values():
+def get_values():
     response = ssm_client.get_parameter(Name=SSM_PARAMETER_NAME)
     value = response["Parameter"]["Value"]
     return value.split(",") if value else []
 
 
-def _save_values(values):
+def save_values(values):
     if values:
         ssm_client.put_parameter(
             Name=SSM_PARAMETER_NAME,
