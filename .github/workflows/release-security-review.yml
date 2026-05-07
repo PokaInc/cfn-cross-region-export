@@ -1,0 +1,47 @@
+# Drop this file into each repo at: .github/workflows/release-security-review.yml
+#
+# Prerequisites (set once at the org level so every caller works automatically):
+#   - secrets: CLAUDE_APP_ID, CLAUDE_ASSISTANT_APP_PRIVATE_KEY, CLAUDE_ASSISTANT_ROLE_ARN
+#   - the Claude assistant GitHub App must be installed on the repo
+#
+# To override defaults for a repo, set the `with:` inputs below.
+
+name: Release Security Review
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      previous-tag:
+        description: "Previous tag for the diff (override; leave empty to auto-detect)."
+        required: false
+        type: string
+        default: ""
+      current-tag:
+        description: "Current tag (override; leave empty to use the latest matching tag)."
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+  id-token: write
+
+jobs:
+  security-review:
+    uses: PokaInc/security-review-action/.github/workflows/security-review.yml@main
+    with:
+      previous-tag: ${{ inputs.previous-tag }}
+      current-tag: ${{ inputs.current-tag }}
+      # tag-pattern: "v*"               # override if your repo uses a different tag scheme
+      # Multi-pattern example (one glob per line) — match calver tags only:
+      # tag-pattern: |
+      #   v[0-9]*.[0-9]*.[0-9]
+      #   v[0-9]*.[0-9]*.[0-9][0-9]
+      # model: "us.anthropic.claude-sonnet-4-6"
+      # aws-region: "us-east-1"
+      # timeout-minutes: 30
+      # issue-label: "security-review"
+    secrets: inherit
