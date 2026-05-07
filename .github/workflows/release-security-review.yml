@@ -1,10 +1,13 @@
-# Drop this file into each repo at: .github/workflows/release-security-review.yml
+# Calls the central PokaInc/security-review-action reusable workflow on every
+# release. Improvements to the central workflow (prompt, scope logic, model,
+# action wrapper) propagate here automatically via the @main pin.
 #
-# Prerequisites (set once at the org level so every caller works automatically):
+# Org-level prerequisites (configured once for all callers):
 #   - secrets: CLAUDE_APP_ID, CLAUDE_ASSISTANT_APP_PRIVATE_KEY, CLAUDE_ASSISTANT_ROLE_ARN
-#   - the Claude assistant GitHub App must be installed on the repo
+#   - the Claude assistant GitHub App is installed on this repo
 #
-# To override defaults for a repo, set the `with:` inputs below.
+# To override defaults for this repo, set the `with:` inputs below
+# (e.g. tag-pattern for repos using a non-default tag scheme).
 
 name: Release Security Review
 
@@ -35,13 +38,16 @@ jobs:
     with:
       previous-tag: ${{ inputs.previous-tag }}
       current-tag: ${{ inputs.current-tag }}
-      # tag-pattern: "v*"               # override if your repo uses a different tag scheme
-      # Multi-pattern example (one glob per line) — match calver tags only:
+      # tag-pattern: "v*"                       # default; override only if your tag scheme differs
+      # Multi-pattern example (one glob per line) — useful when a single fnmatch glob can't express the scheme:
       # tag-pattern: |
-      #   v[0-9]*.[0-9]*.[0-9]
-      #   v[0-9]*.[0-9]*.[0-9][0-9]
+      #   v[0-9]*.[0-9]*.[0-9]*
+      #   release-[0-9]*
       # model: "us.anthropic.claude-sonnet-4-6"
       # aws-region: "us-east-1"
       # timeout-minutes: 30
       # issue-label: "security-review"
-    secrets: inherit
+    secrets:
+      CLAUDE_APP_ID: ${{ secrets.CLAUDE_APP_ID }}
+      CLAUDE_ASSISTANT_APP_PRIVATE_KEY: ${{ secrets.CLAUDE_ASSISTANT_APP_PRIVATE_KEY }}
+      CLAUDE_ASSISTANT_ROLE_ARN: ${{ secrets.CLAUDE_ASSISTANT_ROLE_ARN }}
