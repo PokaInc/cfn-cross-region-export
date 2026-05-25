@@ -20,21 +20,22 @@ on:
         description: "Previous tag for the diff (override; leave empty to auto-detect)."
         required: false
         type: string
-        default: ""
       current-tag:
         description: "Current tag (override; leave empty to use the latest matching tag)."
         required: false
         type: string
-        default: ""
 
-permissions:
-  contents: read
-  issues: write
-  id-token: write
+concurrency:
+  group: release-security-review-${{ github.event.release.tag_name || inputs.current-tag || github.ref }}
+  cancel-in-progress: false
 
 jobs:
   security-review:
     uses: PokaInc/security-review-action/.github/workflows/security-review.yml@main
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
     with:
       previous-tag: ${{ inputs.previous-tag }}
       current-tag: ${{ inputs.current-tag }}
