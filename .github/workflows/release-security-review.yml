@@ -1,0 +1,54 @@
+# Calls the central PokaInc/security-review-action reusable workflow on every
+# release. Improvements to the central workflow (prompt, scope logic, model,
+# action wrapper) propagate here automatically via the @main pin.
+#
+# Org-level prerequisites (configured once for all callers):
+#   - secrets: CLAUDE_APP_ID, CLAUDE_ASSISTANT_APP_PRIVATE_KEY, CLAUDE_ASSISTANT_ROLE_ARN
+#   - the Claude assistant GitHub App is installed on this repo
+#
+# To override defaults for this repo, set the `with:` inputs below
+# (e.g. tag-pattern for repos using a non-default tag scheme).
+
+name: Release Security Review
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      previous-tag:
+        description: "Previous tag for the diff (override; leave empty to auto-detect)."
+        required: false
+        type: string
+      current-tag:
+        description: "Current tag (override; leave empty to use the latest matching tag)."
+        required: false
+        type: string
+
+concurrency:
+  group: release-security-review-${{ github.event.release.tag_name || inputs.current-tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  security-review:
+    uses: PokaInc/security-review-action/.github/workflows/security-review.yml@main
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    with:
+      previous-tag: ${{ inputs.previous-tag }}
+      current-tag: ${{ inputs.current-tag }}
+      # tag-pattern: "v*"                       # default; override only if your tag scheme differs
+      # Multi-pattern example (one glob per line) — useful when a single fnmatch glob can't express the scheme:
+      # tag-pattern: |
+      #   v[0-9]*.[0-9]*.[0-9]*
+      #   release-[0-9]*
+      # model: "us.anthropic.claude-sonnet-4-6"
+      # aws-region: "us-east-1"
+      # timeout-minutes: 30
+      # issue-label: "security-review"
+    secrets:
+      CLAUDE_APP_ID: ${{ secrets.CLAUDE_APP_ID }}
+      CLAUDE_ASSISTANT_APP_PRIVATE_KEY: ${{ secrets.CLAUDE_ASSISTANT_APP_PRIVATE_KEY }}
+      CLAUDE_ASSISTANT_ROLE_ARN: ${{ secrets.CLAUDE_ASSISTANT_ROLE_ARN }}
