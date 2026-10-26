@@ -1,7 +1,7 @@
 -i https://pypi.org/simple
 boto3==1.43.103; python_version >= '3.9'
 botocore==1.43.103; python_version >= '3.9'
-certifi==2026.7.22; python_version >= '3.7'
+certifi==2026.10.19; python_version >= '3.7'
 charset-normalizer==3.5.1; python_version >= '3.7'
 idna==3.20; python_version >= '3.8'
 jmespath==1.1.0; python_version >= '3.9'
