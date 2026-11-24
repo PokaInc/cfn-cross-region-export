@@ -14,14 +14,6 @@ BUCKET_NAME=cfn-cross-region-export-`aws sts get-caller-identity --output text -
 VERSION = $(shell git describe --always --tags)
 ALL_CATEGORIES = $(shell grep -E '^\[' Pipfile | grep -v '^\[\[' | grep -v -E '\[requires\]' | sed 's/\[//g' | sed 's/\]//g' | tr '\n' ' ')
 
-# Check if variable has been defined, otherwise print custom error message
-check_defined = \
-	$(strip $(foreach 1,$1, \
-		$(call __check_defined,$1,$(strip $(value 2)))))
-__check_defined = \
-	$(if $(value $1),, \
-		$(error Undefined $1$(if $2, ($2))))
-
 install:
 	@pipenv install --categories "$(ALL_CATEGORIES)"
 
@@ -41,9 +33,7 @@ package-exporter: check-bucket
 	@sam package --template-file $(EXPORTER_SOURCE_TEMPLATE_PATH) --s3-bucket $(BUCKET_NAME) --s3-prefix cloudformation/$(EXPORTER_SOURCE_TEMPLATE_PATH).yml --output-template-file $(EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH)
 
 deploy-exporter: package-exporter
-	$(call check_defined, SENTRY_DSN, Ex: make deploy-exporter SENTRY_DSN=https://...@sentry.io/... or set it in .env)
-	$(call check_defined, SENTRY_ENV, Ex: make deploy-exporter SENTRY_ENV=dev or set it in .env)
-	@sam deploy --template-file $(EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH) --stack-name $(EXPORTER_STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides SentryDsn=$(SENTRY_DSN) SentryEnvironment=$(SENTRY_ENV) Version=$(VERSION)
+	@sam deploy --template-file $(EXPORTER_GENERATED_TEMPLATE_ABSOLUTE_PATH) --stack-name $(EXPORTER_STACK_NAME) --capabilities CAPABILITY_IAM --parameter-overrides $(if $(SENTRY_DSN),SentryDsn=$(SENTRY_DSN)) $(if $(SENTRY_ENV),SentryEnvironment=$(SENTRY_ENV)) Version=$(VERSION)
 
 check-deployed-version:
 	@aws ssm get-parameters-by-path --path "/project-versions/cfn-cross-region-export/" --query "Parameters[*].[Name,Value]"
