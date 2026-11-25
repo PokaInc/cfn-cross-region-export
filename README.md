@@ -82,6 +82,8 @@ You can also pass the values directly on the command line (this overrides `.env`
 make deploy-exporter SENTRY_DSN=https://...@sentry.io/... SENTRY_ENV=prod
 ```
 
+`SENTRY_DSN` and `SENTRY_ENV` are only required on the first deploy. On updates, omitted values keep their current stack values.
+
 #### Importer
 
 Make sure the **Exporter** has been deployed first in every region you want to import from, as the **Importer** reads the DynamoDB table ARNs published by the **Exporter** from an SSM parameter. It then deploys an **Importer** stack for each one in the current region:
